@@ -1,0 +1,4 @@
+include  ':rpcfy-annotations', ':rpcfy' , ':sample'
+
+
+rootProject.name = 'RPCfy-parent'

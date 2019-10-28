@@ -1,0 +1,41 @@
+apply plugin: 'com.android.application'
+
+android {
+    compileSdkVersion 26
+
+    defaultConfig {
+        applicationId "sample.rpcfy.json"
+        minSdkVersion 9
+        targetSdkVersion 26
+        versionCode 1
+        versionName "1.0"
+
+        testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    sourceSets {
+        test {
+            java.srcDirs += file('build/generated/source/apt')
+        }
+    }
+
+}
+
+dependencies {
+    androidTestImplementation deps.junit
+    androidTestImplementation deps.support.test.rules
+
+//During development
+    implementation (project(path: ':rpcfy-annotations'))
+    annotationProcessor project(path: ':rpcfy')
+
+    testImplementation deps.junit
+    testImplementation ('com.google.code.gson:gson:2.8.6')
+}
