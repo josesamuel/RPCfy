@@ -13,6 +13,7 @@ import rpcfy.JSONify;
 public class GsonObject implements JSONify.JObject {
 
     private JsonObject jsonObject = new JsonObject();
+    private JsonParser jsonParser = new JsonParser();
 
     @Override
     public String toJson() {
@@ -31,6 +32,6 @@ public class GsonObject implements JSONify.JObject {
 
     @Override
     public void put(String name, JSONify.JElement value) {
-        jsonObject.add(name, JsonParser.parseString(value.toJson()));
+        jsonObject.add(name, jsonParser.parse(value.toJson()));
     }
 }

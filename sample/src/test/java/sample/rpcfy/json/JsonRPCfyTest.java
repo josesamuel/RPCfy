@@ -342,4 +342,18 @@ public class JsonRPCfyTest {
         Assert.assertNull(resultMap);
     }
 
+
+    @Test
+    public void testGetRpcInterface() throws Exception {
+        IEchoService echoServiceFromService = echoService.getEchoService();
+        Assert.assertNotNull(echoServiceFromService);
+
+        String response = echoServiceFromService.echoString("World");
+        System.out.println("Response from echo from the proxy " + response);
+        Assert.assertEquals("WorldResult", response);
+
+        response = echoServiceFromService.echoString(null);
+        Assert.assertNull(response);
+    }
+
 }

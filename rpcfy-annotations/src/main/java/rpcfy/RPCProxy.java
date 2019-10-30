@@ -12,8 +12,4 @@ package rpcfy;
  */
 public interface RPCProxy {
 
-    /**
-     * Destroys any stub created while sending the given object through this proxy.
-     */
-    void destroyStub(Object stub);
 }

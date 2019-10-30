@@ -17,7 +17,8 @@ public final class JsonRPCMessageHandler implements MessageReceiver<String> {
 
 
     private MessageSender<String> sender;
-    private Map<String, Map<Integer, RPCStub>> stubMap = new ConcurrentHashMap<>();
+    private final Map<String, Map<Integer, RPCStub>> stubMap = new ConcurrentHashMap<>();
+    private final Map<Object, RPCStub> stubInstanceMap = new ConcurrentHashMap<>();
     private Map<RPCCallId, RPCCallId> waitingCallers = new ConcurrentHashMap<>();
     private JSONify jsoNify = new GsonJsonify();
     private boolean logEnabled;
@@ -111,6 +112,9 @@ public final class JsonRPCMessageHandler implements MessageReceiver<String> {
         sender.sendMessage(message);
     }
 
+    /**
+     * Used internally by generated Proxy/Stub to send the message using the {@link MessageSender} associated with this
+     */
     public String sendMessageAndWaitForResponse(String message, String interfaceName, int methodID, int rpcID) {
         final RPCCallId rpcCallId = new RPCCallId(interfaceName, methodID, rpcID);
         logv("Sending and waiting " + message + " , " + rpcCallId);
@@ -134,14 +138,27 @@ public final class JsonRPCMessageHandler implements MessageReceiver<String> {
      * for the stub can be delivered.
      */
     public void registerStub(RPCStub stub) {
-        String stubInterface = stub.getStubInterfaceName();
-        Map<Integer, RPCStub> stubs = stubMap.get(stubInterface);
-        if (stubs == null) {
-            stubs = new ConcurrentHashMap<>();
-            stubMap.put(stubInterface, stubs);
+        if (stub != null) {
+            String stubInterface = stub.getStubInterfaceName();
+            Map<Integer, RPCStub> stubs = stubMap.get(stubInterface);
+            if (stubs == null) {
+                stubs = new ConcurrentHashMap<>();
+                stubMap.put(stubInterface, stubs);
+            }
+            stubs.put(stub.getStubId(), stub);
+            registerStub(stub.getService(), stub);
         }
-        stubs.put(stub.getStubId(), stub);
     }
+
+    /**
+     * Register a stub associated with an instance
+     */
+    private void registerStub(Object instance, RPCStub stub) {
+        synchronized (stubInstanceMap) {
+            stubInstanceMap.put(instance, stub);
+        }
+    }
+
 
     /**
      * Clears any previously registered {@link RPCStub}
@@ -151,6 +168,7 @@ public final class JsonRPCMessageHandler implements MessageReceiver<String> {
     public void clearStub(RPCStub stub) {
         for (Map<Integer, RPCStub> stubs : stubMap.values()) {
             stubs.remove(stub.getStubId());
+            stubInstanceMap.remove(stub.getService());
         }
     }
 
@@ -159,6 +177,36 @@ public final class JsonRPCMessageHandler implements MessageReceiver<String> {
      */
     public void clear() {
         stubMap.clear();
+        stubInstanceMap.clear();
+    }
+
+    /**
+     * Clears any stub created for the given instance
+     *
+     * @param object
+     */
+    public void clearStub(Object object) {
+        if (object != null) {
+            synchronized (stubInstanceMap) {
+                RPCStub stub = stubInstanceMap.get(object);
+                if (stub != null) {
+                    clearStub(stub);
+                    stubInstanceMap.remove(object);
+                }
+            }
+        }
+    }
+
+    /**
+     * Returns any stub assosiated with given object
+     */
+    public RPCStub getStub(Object object) {
+        if (object != null) {
+            synchronized (stubInstanceMap) {
+                return stubInstanceMap.get(object);
+            }
+        }
+        return null;
     }
 
     private void logv(String message) {

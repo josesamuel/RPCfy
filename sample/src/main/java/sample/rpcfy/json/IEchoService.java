@@ -30,6 +30,10 @@ public interface IEchoService {
 
     Map<Long, MyObj> testMultipleMapParams(Map<Integer, String> strings, Map<String, MyObj> obj1, Map<Long, MyObj> obj2);
 
+    IEchoService getEchoService();
+
+    IEchoService getEchoServiceThatReturnsNull();
+
     void registerListener(IEchoServiceListener listener);
 
     void unregisterListener(IEchoServiceListener listener);

@@ -53,13 +53,6 @@ class FieldBuilder extends RpcfyBuilder {
             }
         }, null);
 
-        classBuilder.addField(FieldSpec.builder(
-                ParameterizedTypeName.get(ClassName.get(Map.class),
-                        ClassName.get(Object.class),
-                        ClassName.get(RPCStub.class)), "stubMap")
-                .addModifiers(Modifier.PRIVATE)
-                .initializer("new $T()", WeakHashMap.class)
-                .build());
 
     }
 

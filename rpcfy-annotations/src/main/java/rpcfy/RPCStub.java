@@ -30,4 +30,9 @@ public interface RPCStub {
      * @return Returns the JSON RPC response
      */
     String onRPCCall(int methodId, String message);
+
+    /**
+     * Returns the service that this stub wraps
+\     */
+    Object getService();
 }

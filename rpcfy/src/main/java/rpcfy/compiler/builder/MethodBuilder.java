@@ -14,12 +14,9 @@ import javax.annotation.processing.Messager;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
-import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
-import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
-import javax.lang.model.util.SimpleTypeVisitor6;
 
 import rpcfy.JSONify;
 import rpcfy.RPCStub;
@@ -106,16 +103,13 @@ class MethodBuilder extends RpcfyBuilder {
 
 
                 methodBuilder.beginControlFlow("if (" + paramNameWithIndex + " != null)");
-                methodBuilder.beginControlFlow("synchronized (stubMap)");
-                methodBuilder.addStatement(stubName + " = stubMap.get(" + paramNameWithIndex + ")");
+                methodBuilder.addStatement(stubName + " = rpcHandler.getStub(" + paramNameWithIndex + ")");
                 methodBuilder.beginControlFlow("if (" + stubName + " == null)");
                 methodBuilder.addStatement(stubName + " = new " + param.asType() + ClassBuilder.STUB_SUFFIX + "(rpcHandler, " + paramName + "_" + paramIndex + ", jsonify)");
-                methodBuilder.addStatement("stubMap.put(" + paramNameWithIndex + ", " + stubName + ")");
+                methodBuilder.addStatement("rpcHandler.registerStub(" + stubName + ")");
                 methodBuilder.endControlFlow();
 
                 methodBuilder.addStatement("paramsObject.put(\"" + paramName + "\", " + paramName + "_" + paramIndex + ".hashCode())");
-                methodBuilder.addStatement("rpcHandler.registerStub(" + stubName + ")");
-                methodBuilder.endControlFlow();
                 methodBuilder.endControlFlow();
 
 
@@ -143,8 +137,25 @@ class MethodBuilder extends RpcfyBuilder {
             String returnType = executableElement.getReturnType().toString();
 
             if (executableElement.getReturnType().getKind() == TypeKind.DECLARED) {
-                methodBuilder.addStatement("$T genericType = new $T<"+ returnType +">(){}.getType()", Type.class, TypeToken.class);
-                methodBuilder.addStatement("return jsonify.fromJSON(result, \"result\", genericType)");
+                methodBuilder.addStatement("$T genericType = new $T<" + returnType + ">(){}.getType()", Type.class, TypeToken.class);
+
+                if (getBindingManager().isParameterOfTypeTPCfy(executableElement.getReturnType())) {
+
+                    methodBuilder.addStatement("String resultJson = jsonify.getJSONElement(result, \"result\")");
+                    methodBuilder.beginControlFlow("if (resultJson != null && !resultJson.isEmpty())");
+                    methodBuilder.addStatement("int return_id = jsonify.fromJSON(resultJson, int.class)");
+
+                    ClassName returnProxyCName = ClassName.bestGuess(executableElement.getReturnType().toString() + ClassBuilder.PROXY_SUFFIX);
+                    methodBuilder.addStatement("return new $T(rpcHandler, jsonify, return_id)", returnProxyCName);
+
+                    methodBuilder.endControlFlow();
+                    methodBuilder.beginControlFlow("else");
+                    methodBuilder.addStatement("return null");
+                    methodBuilder.endControlFlow();
+                }
+                else {
+                    methodBuilder.addStatement("return jsonify.fromJSON(result, \"result\", genericType)");
+                }
             } else {
                 methodBuilder.addStatement("return jsonify.fromJSON(result, \"result\", " + returnType + ".class)");
             }
@@ -240,8 +251,8 @@ class MethodBuilder extends RpcfyBuilder {
                 String pType = param.asType().toString();
 
                 if (param.asType().getKind() == TypeKind.DECLARED) {
-                    methodBuilder.addStatement("$T genericType"+ paramIndex +" = new $T<"+ pType +">(){}.getType()", Type.class, TypeToken.class);
-                    methodBuilder.addStatement("$T " + paramName + " = jsonify.fromJSON(paramsElement, \"" + param.getSimpleName() + "\", genericType"+ paramIndex + ")", param.asType());
+                    methodBuilder.addStatement("$T genericType" + paramIndex + " = new $T<" + pType + ">(){}.getType()", Type.class, TypeToken.class);
+                    methodBuilder.addStatement("$T " + paramName + " = jsonify.fromJSON(paramsElement, \"" + param.getSimpleName() + "\", genericType" + paramIndex + ")", param.asType());
                 } else {
                     methodBuilder.addStatement("$T " + paramName + " = jsonify.fromJSON(paramsElement, \"" + param.getSimpleName() + "\", $T.class)", param.asType(), param.asType());
                 }
@@ -262,7 +273,30 @@ class MethodBuilder extends RpcfyBuilder {
 
         if (executableElement.getReturnType().getKind() != TypeKind.VOID) {
             methodBuilder.addStatement("$T result = " + methodCall, executableElement.getReturnType());
-            methodBuilder.addStatement("jsonRPCObject.put(\"result\", jsonify.toJson(result))");
+
+            if (getBindingManager().isParameterOfTypeTPCfy(executableElement.getReturnType())) {
+
+                methodBuilder.addStatement("$T returnStub = null", RPCStub.class);
+
+
+                methodBuilder.beginControlFlow("if (result  != null)");
+                methodBuilder.addStatement("returnStub = rpcHandler.getStub(result)");
+                methodBuilder.beginControlFlow("if (returnStub  == null)");
+                methodBuilder.addStatement("returnStub = new " + executableElement.getReturnType() + ClassBuilder.STUB_SUFFIX + "(rpcHandler, result, jsonify)");
+                methodBuilder.addStatement("rpcHandler.registerStub(returnStub)");
+                methodBuilder.endControlFlow();
+
+                methodBuilder.addStatement("jsonRPCObject.put(\"result\", result.hashCode())");
+
+                methodBuilder.endControlFlow();
+                methodBuilder.beginControlFlow("else");
+                methodBuilder.addStatement("jsonRPCObject.put(\"result\", \"\")");
+                methodBuilder.endControlFlow();
+
+
+            } else {
+                methodBuilder.addStatement("jsonRPCObject.put(\"result\", jsonify.toJson(result))");
+            }
 
         } else {
             methodBuilder.addStatement(methodCall);
@@ -295,7 +329,15 @@ class MethodBuilder extends RpcfyBuilder {
                 .addModifiers(Modifier.PUBLIC)
                 .addAnnotation(Override.class)
                 .returns(int.class)
-                .addStatement("return remoteID != null ? remoteID : 0");
+                .addStatement("return remoteID");
+
+        classBuilder.addMethod(methodBuilder.build());
+
+        methodBuilder = MethodSpec.methodBuilder("getService")
+                .addModifiers(Modifier.PUBLIC)
+                .addAnnotation(Override.class)
+                .returns(Object.class)
+                .addStatement("return service");
 
         classBuilder.addMethod(methodBuilder.build());
 
@@ -307,32 +349,9 @@ class MethodBuilder extends RpcfyBuilder {
     private void addProxyExtras(TypeSpec.Builder classBuilder) {
         addHashCode(classBuilder);
         addEquals(classBuilder);
-        addProxyDestroyMethods(classBuilder);
     }
 
 
-    /**
-     * Add proxy method for destroystub
-     */
-    private void addProxyDestroyMethods(TypeSpec.Builder classBuilder) {
-        MethodSpec.Builder methodBuilder = MethodSpec.methodBuilder("destroyStub")
-                .addModifiers(Modifier.PUBLIC)
-                .addAnnotation(Override.class)
-                .addParameter(Object.class, "object")
-                .returns(TypeName.VOID)
-                .beginControlFlow("if(object != null)")
-                .beginControlFlow("synchronized (stubMap)")
-                .addStatement("RPCStub stub = stubMap.get(object)")
-                .beginControlFlow("if (stub != null)")
-                .addStatement("rpcHandler.clearStub(stub)")
-                .addStatement("stubMap.remove(object)")
-                .endControlFlow()
-                .endControlFlow()
-                .endControlFlow();
-        classBuilder.addMethod(methodBuilder.build());
-
-
-    }
 
     /**
      * Add proxy method to set hashcode to uniqueu id of binder

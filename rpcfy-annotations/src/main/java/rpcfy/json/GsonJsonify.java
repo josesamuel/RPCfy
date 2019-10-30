@@ -14,6 +14,7 @@ import rpcfy.JSONify;
 public class GsonJsonify implements JSONify {
 
     private Gson gson = new Gson();
+    private JsonParser jsonParser = new JsonParser();
 
     @Override
     public JObject newJson() {
@@ -50,7 +51,7 @@ public class GsonJsonify implements JSONify {
 
     @Override
     public String getJSONElement(String json, String parameter) {
-        JsonElement element =JsonParser.parseString(json).getAsJsonObject()
+        JsonElement element =jsonParser.parse(json).getAsJsonObject()
                 .get(parameter);
         return element != null ? element.toString() : null;
     }

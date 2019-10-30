@@ -6,11 +6,11 @@ import rpcfy.annotations.RPCfy;
 @RPCfy
 public interface IEchoServiceListener {
 
-    void onUnRegistered(boolean success);
+    default void onUnRegistered(boolean success) {}
 
-    void onRegistered();
+    default void onRegistered()  {}
 
-    void onNoArgMethodCalled();
+    default void onNoArgMethodCalled()  {}
 
-    void onEcho(String input);
+    default void onEcho(String input)  {}
 }

@@ -30,11 +30,17 @@ public class IEchoServiceImpl implements IEchoService {
 
     @Override
     public MyObj echoObject(MyObj input) {
+        System.out.println("echoObject " + input);
+        if (input != null) {
+            System.out.println("echoObject " + input.getName());
+        }
         if(listeners.size() >= 2) {
             listeners.get(1).onEcho(input.getName());
         }
         return input;
     }
+
+
 
     @Override
     public String testNullInput(String input) throws Exception {
@@ -83,6 +89,16 @@ public class IEchoServiceImpl implements IEchoService {
     public Map<Long, MyObj> testMultipleMapParams(Map<Integer, String> strings, Map<String, MyObj> obj1, Map<Long, MyObj> obj2){
         System.out.println("testMultipleMapParams : " + strings + " " + obj1 + " " + obj2);
         return obj2;
+    }
+
+    @Override
+    public IEchoService getEchoService() {
+        return this;
+    }
+
+    @Override
+    public IEchoService getEchoServiceThatReturnsNull() {
+        return null;
     }
 
     @Override
