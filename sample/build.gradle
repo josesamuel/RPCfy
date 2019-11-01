@@ -1,47 +1,33 @@
-apply plugin: 'com.android.application'
-
-android {
-    compileSdkVersion 26
-
-    compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
-    }
+plugins {
+    id 'java'
+    id 'org.jetbrains.kotlin.jvm' version '1.3.41'
+}
+apply plugin: 'kotlin-kapt'
 
 
-    defaultConfig {
-        applicationId "sample.rpcfy.json"
-        minSdkVersion 9
-        targetSdkVersion 26
-        versionCode 1
-        versionName "1.0"
+sourceCompatibility = 1.8
 
-        testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
-
-    }
-    buildTypes {
-        release {
-            minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
-        }
-    }
-
-    sourceSets {
-        test {
-            java.srcDirs += file('build/generated/source/apt')
-        }
-    }
-
+repositories {
+    mavenCentral()
 }
 
 dependencies {
-    androidTestImplementation deps.junit
-    androidTestImplementation deps.support.test.rules
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8"
+    testCompile group: 'junit', name: 'junit', version: '4.12'
 
-//During development
-    implementation (project(path: ':rpcfy-annotations'))
-    annotationProcessor project(path: ':rpcfy')
+    implementation project(':rpcfy-annotations')
+    kapt project(':rpcfy')
+    kaptTest project(':rpcfy')
 
-    testImplementation deps.junit
-    testImplementation ('com.google.code.gson:gson:2.8.6')
+//    implementation 'com.josesamuel:rpcfy-annotations:1.0.1'
+//    kapt 'com.josesamuel:rpcfy:1.0.1'
+//    kaptTest 'com.josesamuel:rpcfy:1.0.1'
+
+}
+
+compileKotlin {
+    kotlinOptions.jvmTarget = "1.8"
+}
+compileTestKotlin {
+    kotlinOptions.jvmTarget = "1.8"
 }

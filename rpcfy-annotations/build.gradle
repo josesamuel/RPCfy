@@ -3,10 +3,13 @@ apply plugin: 'java-library'
 sourceCompatibility = JavaVersion.VERSION_1_8
 targetCompatibility = JavaVersion.VERSION_1_8
 
+repositories {
+    mavenCentral()
+}
 
 dependencies {
     api fileTree(dir: 'libs', include: ['*.jar'])
-    api ('com.google.code.gson:gson:2.8.5')
+    api 'com.google.code.gson:gson:2.8.5'
 }
 
 apply from: rootProject.file('gradle/gradle-mvn-push.gradle')

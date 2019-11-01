@@ -1,4 +1,6 @@
-include  ':rpcfy-annotations', ':rpcfy' , ':sample'
+rootProject.name = 'rpcfy-parent'
 
+include 'rpcfy-annotations'
+include 'rpcfy'
+include 'sample'
 
-rootProject.name = 'RPCfy-parent'

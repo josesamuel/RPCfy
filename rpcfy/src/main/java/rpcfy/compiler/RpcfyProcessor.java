@@ -18,8 +18,11 @@ import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.TypeElement;
 import javax.tools.Diagnostic;
 
+import net.ltgt.gradle.incap.IncrementalAnnotationProcessor;
 import rpcfy.annotations.RPCfy;
 import rpcfy.compiler.builder.BindingManager;
+
+import static net.ltgt.gradle.incap.IncrementalAnnotationProcessorType.ISOLATING;
 
 /**
  * AnnotationProcessor that processes the @{@link RPCfy} annotations and
@@ -28,6 +31,7 @@ import rpcfy.compiler.builder.BindingManager;
  * @author js
  */
 @AutoService(Processor.class)
+@IncrementalAnnotationProcessor(ISOLATING)
 public class RpcfyProcessor extends AbstractProcessor {
 
     private BindingManager bindingManager;

@@ -1,4 +1,4 @@
-package sample.rpcfy.json;
+package sample.rpcfy;
 
 public class MyObj {
 
@@ -14,7 +14,8 @@ public class MyObj {
     }
 
     public String getName() {
-        return name;
+        System.out.println(1);
+        return name ;
     }
 
     public int getAge() {

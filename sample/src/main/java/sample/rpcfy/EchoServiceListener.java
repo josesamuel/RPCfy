@@ -1,10 +1,10 @@
-package sample.rpcfy.json;
+package sample.rpcfy;
 
 import rpcfy.annotations.RPCfy;
 
 
 @RPCfy
-public interface IEchoServiceListener {
+public interface EchoServiceListener {
 
     default void onUnRegistered(boolean success) {}
 

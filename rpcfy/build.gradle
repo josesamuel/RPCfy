@@ -4,11 +4,19 @@ apply plugin: 'java-library'
 sourceCompatibility = JavaVersion.VERSION_1_7
 targetCompatibility = JavaVersion.VERSION_1_7
 
+repositories {
+  mavenCentral()
+}
+
 dependencies {
   implementation project(':rpcfy-annotations')
-  implementation deps.auto.common
-  api deps.javapoet
-  compileOnly deps.auto.service
+  implementation 'com.google.auto:auto-common:0.8'
+  implementation 'com.squareup:javapoet:1.9.0'
+  compileOnly 'com.google.auto.service:auto-service:1.0-rc6'
+  annotationProcessor 'com.google.auto.service:auto-service:1.0-rc6'
+
+  compileOnly("net.ltgt.gradle.incap:incap:0.2")
+  annotationProcessor("net.ltgt.gradle.incap:incap-processor:0.2")
 }
 
 
