@@ -18,6 +18,8 @@ interface EchoService {
 
     fun echoString(input: String?): String?
 
+    fun echovarargs(vararg input: String): String?
+
     fun echoObject(input: MyObj?): MyObj?
 
     @Throws(Exception::class)
@@ -36,4 +38,6 @@ interface EchoService {
     fun registerListener(listener: EchoServiceListener)
 
     fun unregisterListener(listener: EchoServiceListener)
+
+    fun echoComplexObject(complexObject: ComplexObject?) : ComplexObject?
 }

@@ -329,4 +329,36 @@ class JsonRPCfyTest {
         assertNull(response)
     }
 
+
+    @Test
+    @Throws(Exception::class)
+    fun testComplexInstance() {
+        val complexObject = ComplexObject()
+        complexObject.sex = ComplexObject.SEX.MALE
+        complexObject.name = "Name0"
+        complexObject.family = ComplexObject.Family()
+        complexObject.family.familyName = "Family0"
+
+        val returnedComplex = echoService.echoComplexObject(complexObject)
+        assertNotNull(returnedComplex)
+        assertEquals(returnedComplex?.name, complexObject.name)
+        assertEquals(returnedComplex?.sex, complexObject.sex)
+        assertEquals(returnedComplex?.family?.familyName, complexObject.family.familyName)
+
+        val returnedComplex2  = echoService.echoComplexObject(null)
+        assertNull(returnedComplex2)
+    }
+
+    @Test
+    @Throws(Exception::class)
+    fun testVarArgs() {
+        val returnedString = echoService.echovarargs("1", "2", "3")
+        assertEquals(returnedString, "3")
+
+        val returnedString2 = echoService.echovarargs()
+        assertNull(returnedString2)
+
+    }
+
+
 }

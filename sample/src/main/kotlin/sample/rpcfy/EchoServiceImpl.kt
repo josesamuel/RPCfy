@@ -5,6 +5,23 @@ import java.util.*
 
 class EchoServiceImpl : EchoService {
 
+    override fun echovarargs(vararg input: String): String? {
+        println("echovarargs ")
+        var last:String? = null
+        input.forEach {
+            println("$it")
+            last = it
+        }
+
+        return last
+    }
+
+
+    override fun echoComplexObject(complexObject: ComplexObject?): ComplexObject? {
+        println("echoComplexObject ${complexObject?.name} ${complexObject?.sex} ${complexObject?.family?.familyName}")
+        return complexObject;
+    }
+
     private val listeners = ArrayList<EchoServiceListener>()
 
     override fun getEchoService(): EchoService = this
