@@ -191,12 +191,15 @@ class MethodBuilder extends RpcfyBuilder {
         methodBuilder.addStatement("jsonRPCObject.put(\"id\", jsonify.fromJSON(message, \"id\", int.class))");
 
         //add custom entries back
+
+        methodBuilder.beginControlFlow("if (message.contains(\"custom_\"))");
         methodBuilder.addStatement("$T requestElement = jsonify.fromJson(message)", JSONify.JElement.class);
         methodBuilder.addStatement("$T<String> requestParams = requestElement.getKeys()", Set.class);
         methodBuilder.beginControlFlow("if (requestParams != null)");
         methodBuilder.beginControlFlow("for (String key : requestElement.getKeys())");
         methodBuilder.beginControlFlow("if (key.startsWith(\"custom_\"))");
         methodBuilder.addStatement("jsonRPCObject.putJson(key, requestElement.getJsonValue(key))");
+        methodBuilder.endControlFlow();
         methodBuilder.endControlFlow();
         methodBuilder.endControlFlow();
         methodBuilder.endControlFlow();
