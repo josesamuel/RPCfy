@@ -40,4 +40,7 @@ interface EchoService {
     fun unregisterListener(listener: EchoServiceListener)
 
     fun echoComplexObject(complexObject: ComplexObject?) : ComplexObject?
+
+    fun callThatTimesout(timeout:Int) : Int
+
 }

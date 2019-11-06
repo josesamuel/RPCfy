@@ -1,10 +1,11 @@
 package rpcfy;
 
 
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-
 import rpcfy.json.GsonJsonify;
+
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Takes care of sending the JSONRPC messages using the provided {@link MessageSender}, and
@@ -15,13 +16,14 @@ import rpcfy.json.GsonJsonify;
  */
 public final class JsonRPCMessageHandler implements MessageReceiver<String> {
 
-
+    private final long REQUEST_TIMEOUT = 120000;
     private MessageSender<String> sender;
     private final Map<String, Map<Integer, RPCStub>> stubMap = new ConcurrentHashMap<>();
     private final Map<Object, RPCStub> stubInstanceMap = new ConcurrentHashMap<>();
     private Map<RPCCallId, RPCCallId> waitingCallers = new ConcurrentHashMap<>();
     private JSONify jsoNify = new GsonJsonify();
     private boolean logEnabled;
+    private long requestTimeout = REQUEST_TIMEOUT;
 
     /**
      * Creates an instance of {@link JsonRPCMessageHandler}.
@@ -74,7 +76,6 @@ public final class JsonRPCMessageHandler implements MessageReceiver<String> {
                 if (stub != null) {
                     int methodId = jsoNify.fromJSON(message, "method_id", int.class);
                     sendMessage(stub.onRPCCall(methodId, message));
-
                 } else {
                     loge("No Matching Stub found to serve the request " + message + " " + stubMap);
                 }
@@ -109,7 +110,12 @@ public final class JsonRPCMessageHandler implements MessageReceiver<String> {
      */
     public void sendMessage(String message) {
         logv("Sending " + message);
-        sender.sendMessage(message);
+        try {
+            sender.sendMessage(message);
+        } catch (Exception ex) {
+            loge(ex.getMessage());
+            throw new RuntimeException(ex);
+        }
     }
 
     /**
@@ -122,11 +128,23 @@ public final class JsonRPCMessageHandler implements MessageReceiver<String> {
             waitingCallers.put(rpcCallId, rpcCallId);
             synchronized (rpcCallId) {
                 sender.sendMessage(message);
-                rpcCallId.wait();
+                rpcCallId.wait(requestTimeout);
                 waitingCallers.remove(rpcCallId);
+                if (rpcCallId.result == null) {
+                    throw new RuntimeException("Request timed out");
+                }
             }
-
         } catch (Exception ex) {
+            waitingCallers.remove(rpcCallId);
+
+            JSONify.JObject jsonRPCObject = jsoNify.newJson();
+            jsonRPCObject.put("jsonrpc", "2.0");
+            JSONify.JObject jsonErrorObject = jsoNify.newJson();
+            jsonErrorObject.put("code", -32000);
+            jsonErrorObject.put("message", ex.getMessage());
+            jsonErrorObject.put("exception", ex.getClass().getSimpleName());
+            jsonRPCObject.put("error", jsonErrorObject);
+            rpcCallId.result = jsonRPCObject.toJson();
             loge(ex.getMessage());
         }
         return rpcCallId.result;
@@ -207,6 +225,14 @@ public final class JsonRPCMessageHandler implements MessageReceiver<String> {
             }
         }
         return null;
+    }
+
+    /**
+     * Sets the request timeout for blocking requests.
+     * Default timeout is 2 minutes
+     */
+    public void setRequestTimeout(long requestTimeout) {
+        this.requestTimeout = requestTimeout;
     }
 
     private void logv(String message) {

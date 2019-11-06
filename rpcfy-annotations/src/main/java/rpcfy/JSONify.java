@@ -2,6 +2,7 @@ package rpcfy;
 
 
 import java.lang.reflect.Type;
+import java.util.Set;
 
 /**
  * Converts an object to and from JSON.
@@ -20,6 +21,11 @@ public interface JSONify {
      * Converts given Object to {@link JElement}
      */
     JElement toJson(Object object);
+
+    /**
+     * Converts given JSON string to {@link JElement}
+     */
+    JElement fromJson(String json);
 
     /**
      * Convert given json message to object of given type
@@ -51,6 +57,17 @@ public interface JSONify {
          * Returns the JSON representation
          */
         String toJson();
+
+        /**
+         * Returns the list of parameters in this element
+         */
+        Set<String> getKeys();
+
+        /**
+         * Returns the value of parameter in json in this element if any
+         */
+        String getJsonValue(String parameter);
+
     }
 
 
@@ -58,6 +75,11 @@ public interface JSONify {
      * Represents a JSON object
      */
     interface JObject extends JElement {
+
+        /**
+         * Adds the given json string as value of given parameter
+         */
+        void putJson(String name, String value);
 
         /**
          * Adds a name value parameter
@@ -73,5 +95,6 @@ public interface JSONify {
          * Adds a name value parameter
          */
         void put(String name, JElement value);
+
     }
 }

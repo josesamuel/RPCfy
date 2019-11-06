@@ -2,11 +2,12 @@ package rpcfy.json;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import rpcfy.JSONify;
 
 import java.lang.reflect.Type;
-
-import rpcfy.JSONify;
+import java.util.Set;
 
 /**
  * Default implementation of {@link rpcfy.JSONify} using {@link Gson}
@@ -24,11 +25,48 @@ public class GsonJsonify implements JSONify {
     @Override
     public JElement toJson(final Object object) {
         return new JElement() {
+            private JsonObject jsonObject;
+
             @Override
             public String toJson() {
                 return gson.toJson(object);
             }
+
+            @Override
+            public Set<String> getKeys() {
+                if (jsonObject == null) {
+                    JsonParser jsonParser = new JsonParser();
+                    JsonElement jsonElement = jsonParser.parse(toJson());
+                    if (jsonElement instanceof JsonObject) {
+                        jsonObject = (JsonObject) jsonElement;
+                        return jsonObject.keySet();
+                    }
+                } else {
+                    return jsonObject.keySet();
+                }
+                return null;
+            }
+
+            @Override
+            public String getJsonValue(String parameter) {
+                if (jsonObject == null) {
+                    JsonParser jsonParser = new JsonParser();
+                    JsonElement jsonElement = jsonParser.parse(toJson());
+                    if (jsonElement instanceof JsonObject) {
+                        jsonObject = (JsonObject) jsonElement;
+                        return jsonObject.get(parameter).toString();
+                    }
+                } else {
+                    return jsonObject.get(parameter).toString();
+                }
+                return null;
+            }
         };
+    }
+
+    @Override
+    public JElement fromJson(String json) {
+        return new GsonObject(json);
     }
 
     @Override
@@ -51,7 +89,7 @@ public class GsonJsonify implements JSONify {
 
     @Override
     public String getJSONElement(String json, String parameter) {
-        JsonElement element =jsonParser.parse(json).getAsJsonObject()
+        JsonElement element = jsonParser.parse(json).getAsJsonObject()
                 .get(parameter);
         return element != null ? element.toString() : null;
     }

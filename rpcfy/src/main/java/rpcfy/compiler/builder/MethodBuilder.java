@@ -9,6 +9,7 @@ import com.squareup.javapoet.TypeSpec;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 import javax.annotation.processing.Messager;
 import javax.lang.model.element.Element;
@@ -188,6 +189,18 @@ class MethodBuilder extends RpcfyBuilder {
         methodBuilder.addStatement("jsonRPCObject.put(\"interface\", getStubInterfaceName())");
         methodBuilder.addStatement("jsonRPCObject.put(\"method_id\", methodID)");
         methodBuilder.addStatement("jsonRPCObject.put(\"id\", jsonify.fromJSON(message, \"id\", int.class))");
+
+        //add custom entries back
+        methodBuilder.addStatement("$T requestElement = jsonify.fromJson(message)", JSONify.JElement.class);
+        methodBuilder.addStatement("$T<String> requestParams = requestElement.getKeys()", Set.class);
+        methodBuilder.beginControlFlow("if (requestParams != null)");
+        methodBuilder.beginControlFlow("for (String key : requestElement.getKeys())");
+        methodBuilder.beginControlFlow("if (key.startsWith(\"custom_\"))");
+        methodBuilder.addStatement("jsonRPCObject.putJson(key, requestElement.getJsonValue(key))");
+        methodBuilder.endControlFlow();
+        methodBuilder.endControlFlow();
+        methodBuilder.endControlFlow();
+
 
         methodBuilder.beginControlFlow("try");
         methodBuilder.beginControlFlow("switch (methodID)");

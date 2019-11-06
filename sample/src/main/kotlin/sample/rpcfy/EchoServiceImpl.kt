@@ -5,9 +5,14 @@ import java.util.*
 
 class EchoServiceImpl : EchoService {
 
+    override fun callThatTimesout(timeout: Int): Int {
+        Thread.sleep(timeout.toLong())
+        return timeout
+    }
+
     override fun echovarargs(vararg input: String): String? {
         println("echovarargs ")
-        var last:String? = null
+        var last: String? = null
         input.forEach {
             println("$it")
             last = it

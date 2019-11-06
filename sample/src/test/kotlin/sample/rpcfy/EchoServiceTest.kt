@@ -4,8 +4,11 @@ import junit.framework.Assert.*
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
+import rpcfy.JSONify
 import rpcfy.JsonRPCMessageHandler
 import rpcfy.MessageSender
+import rpcfy.json.GsonJsonify
+import java.io.IOException
 import java.util.*
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.LinkedBlockingQueue
@@ -17,6 +20,10 @@ import java.util.concurrent.LinkedBlockingQueue
  * Messages send at "client (MessageSender)" as simply put to the "server" queue
  */
 class JsonRPCfyTest {
+
+    private var simulateMessageFailure  = false
+    private var simulateCustomJsonEntries  = false
+    private var simulateCustomJsonEntriesReturnedMessage:String?  = ""
 
     //**********************************************************************************
     //Simulating a server
@@ -46,8 +53,25 @@ class JsonRPCfyTest {
     //server handler uses this to send message, which simply puts that in server queue.
     //In real application, this message will be sent across network/process to server side
     private val clientMessageSender = MessageSender<String> { message ->
+        if (simulateMessageFailure) {
+            throw IOException("Unable to send message")
+        }
+
+        var messageToSend = message
+        if (simulateCustomJsonEntries) {
+            //Add some custom entries to the message
+            val jsonify = GsonJsonify()
+            val msgObject: JSONify.JObject = jsonify.fromJson(message) as JSONify.JObject
+            msgObject.put("custom_string", "Hello")
+            msgObject.put("custom_int", 1)
+            val jsonObj = jsonify.toJson(MyObj("Hello", 1))
+            msgObject.put("custom_obj", jsonObj)
+            messageToSend = msgObject.toJson()
+            println("Sending $messageToSend")
+        }
+
         try {
-            serverQueue.put(message)
+            serverQueue.put(messageToSend)
         } catch (e: Exception) {
         }
     }
@@ -61,6 +85,9 @@ class JsonRPCfyTest {
 
     @Before
     fun setup() {
+        simulateMessageFailure = false
+        simulateCustomJsonEntries = false
+        simulateCustomJsonEntriesReturnedMessage = ""
         running = true
         serverHandler = JsonRPCMessageHandler(serverMessageSender)
         //creates the stub for IEchoService wrapping the real implementation and register with handler
@@ -85,7 +112,11 @@ class JsonRPCfyTest {
             override fun run() {
                 while (running) {
                     try {
-                        clientHandler.onMessage(clientQueue.take())
+                        val response = clientQueue.take()
+                        if (simulateCustomJsonEntries) {
+                            simulateCustomJsonEntriesReturnedMessage = response
+                        }
+                        clientHandler.onMessage(response)
                     } catch (ignored: Exception) {
                     }
 
@@ -345,7 +376,7 @@ class JsonRPCfyTest {
         assertEquals(returnedComplex?.sex, complexObject.sex)
         assertEquals(returnedComplex?.family?.familyName, complexObject.family.familyName)
 
-        val returnedComplex2  = echoService.echoComplexObject(null)
+        val returnedComplex2 = echoService.echoComplexObject(null)
         assertNull(returnedComplex2)
     }
 
@@ -358,6 +389,35 @@ class JsonRPCfyTest {
         val returnedString2 = echoService.echovarargs()
         assertNull(returnedString2)
 
+    }
+
+
+    @Test(expected = java.lang.RuntimeException::class)
+    @Throws(Exception::class)
+    fun testTimeout() {
+        val result = clientHandler.setRequestTimeout(2)
+        echoService.callThatTimesout(4)
+        fail("Expecting failure")
+    }
+
+    @Test(expected = java.lang.RuntimeException::class)
+    @Throws(Exception::class)
+    fun testMessageFailture() {
+        simulateMessageFailure = true
+        var response = echoService.echoString("World")
+        fail("Expecting failure")
+    }
+
+
+    @Test
+    @Throws(Exception::class)
+    fun testCustomJsonEntries() {
+        simulateCustomJsonEntries = true
+        echoService.echoString("World")
+        assertNotNull(simulateCustomJsonEntriesReturnedMessage)
+        val jsonify = GsonJsonify()
+        assertEquals("Hello", jsonify.fromJSON(simulateCustomJsonEntriesReturnedMessage, "custom_string", String::class.java))
+        assertEquals(1, jsonify.fromJSON(simulateCustomJsonEntriesReturnedMessage, "custom_int", Int::class.java))
     }
 
 
