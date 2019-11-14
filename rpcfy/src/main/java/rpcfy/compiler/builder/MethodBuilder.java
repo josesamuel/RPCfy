@@ -9,6 +9,7 @@ import com.squareup.javapoet.TypeSpec;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import javax.annotation.processing.Messager;
@@ -123,6 +124,14 @@ class MethodBuilder extends RpcfyBuilder {
 
         methodBuilder.addStatement("jsonRPCObject.put(\"params\", paramsObject)");
         methodBuilder.addStatement("jsonRPCObject.put(\"id\", rpcCallId)");
+
+        methodBuilder.addStatement("$T<String, String> _jsonrpc_req_extras = rpcHandler.getExtras()", Map.class);
+        methodBuilder.beginControlFlow("if (_jsonrpc_req_extras != null)");
+        methodBuilder.beginControlFlow("for (String key:_jsonrpc_req_extras.keySet())");
+        methodBuilder.addStatement("jsonRPCObject.putJson(key, _jsonrpc_req_extras.get(key))");
+        methodBuilder.endControlFlow();
+        methodBuilder.endControlFlow();
+
 
         if (isOneWay) {
             methodBuilder.addStatement("rpcHandler.sendMessage(jsonRPCObject.toJson())");

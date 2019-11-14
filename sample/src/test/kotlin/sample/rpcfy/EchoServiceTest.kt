@@ -12,6 +12,7 @@ import java.io.IOException
 import java.util.*
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.LinkedBlockingQueue
+import kotlin.collections.HashMap
 
 
 /**
@@ -56,22 +57,8 @@ class JsonRPCfyTest {
         if (simulateMessageFailure) {
             throw IOException("Unable to send message")
         }
-
-        var messageToSend = message
-        if (simulateCustomJsonEntries) {
-            //Add some custom entries to the message
-            val jsonify = GsonJsonify()
-            val msgObject: JSONify.JObject = jsonify.fromJson(message) as JSONify.JObject
-            msgObject.put("custom_string", "Hello")
-            msgObject.put("custom_int", 1)
-            val jsonObj = jsonify.toJson(MyObj("Hello", 1))
-            msgObject.put("custom_obj", jsonObj)
-            messageToSend = msgObject.toJson()
-            println("Sending $messageToSend")
-        }
-
         try {
-            serverQueue.put(messageToSend)
+            serverQueue.put(message)
         } catch (e: Exception) {
         }
     }
@@ -137,6 +124,7 @@ class JsonRPCfyTest {
         serverThread.interrupt()
         clientThread.interrupt()
         serverHandler.clear()
+        clientHandler.setExtra(null)
         clientHandler.clear()
     }
 
@@ -413,11 +401,27 @@ class JsonRPCfyTest {
     @Throws(Exception::class)
     fun testCustomJsonEntries() {
         simulateCustomJsonEntries = true
+
+        val customExtras = mutableMapOf<String, String>()
+        customExtras["custom_string"] = "Hello"
+        customExtras["custom_int"] = "1"
+        val jsonify1 = GsonJsonify()
+        val jsonObj = jsonify1.toJson(MyObj("Hello", 1))
+        customExtras["custom_obj"] = jsonObj.toJson()
+        customExtras["foo"] = "bar"
+
+        clientHandler.setExtra(customExtras)
+        println("Extras set $customExtras")
+
         echoService.echoString("World")
         assertNotNull(simulateCustomJsonEntriesReturnedMessage)
         val jsonify = GsonJsonify()
+        //custom_xxx keys should come back
         assertEquals("Hello", jsonify.fromJSON(simulateCustomJsonEntriesReturnedMessage, "custom_string", String::class.java))
         assertEquals(1, jsonify.fromJSON(simulateCustomJsonEntriesReturnedMessage, "custom_int", Int::class.java))
+        assertEquals(1, jsonify.fromJSON(simulateCustomJsonEntriesReturnedMessage, "custom_obj", MyObj::class.java).age)
+        //non custom should not be back (unless other end adds it back)
+        assertNull(jsonify.fromJSON(simulateCustomJsonEntriesReturnedMessage, "foo", String::class.java))
     }
 
 

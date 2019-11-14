@@ -4,7 +4,6 @@ package rpcfy;
 import rpcfy.json.GsonJsonify;
 
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -24,6 +23,7 @@ public final class JsonRPCMessageHandler implements MessageReceiver<String> {
     private JSONify jsoNify = new GsonJsonify();
     private boolean logEnabled;
     private long requestTimeout = REQUEST_TIMEOUT;
+    private Map<String, String> requestExtras;
 
     /**
      * Creates an instance of {@link JsonRPCMessageHandler}.
@@ -45,6 +45,22 @@ public final class JsonRPCMessageHandler implements MessageReceiver<String> {
      */
     public void setLogEnabled(boolean logEnabled) {
         this.logEnabled = logEnabled;
+    }
+
+    /**
+     * Put any extra json key/value to be send with the request message.
+     * <p>
+     * Any key starting with custom_ will also be relayed back in the response
+     */
+    public void setExtra(Map<String, String> requestExtras) {
+        this.requestExtras = requestExtras;
+    }
+
+    /**
+     * Return any extras set
+     */
+    public Map<String, String> getExtras() {
+        return requestExtras;
     }
 
     @Override
@@ -196,6 +212,7 @@ public final class JsonRPCMessageHandler implements MessageReceiver<String> {
     public void clear() {
         stubMap.clear();
         stubInstanceMap.clear();
+        requestExtras = null;
     }
 
     /**
