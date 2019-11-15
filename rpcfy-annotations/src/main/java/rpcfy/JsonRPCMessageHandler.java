@@ -114,8 +114,7 @@ public final class JsonRPCMessageHandler implements MessageReceiver<String> {
                 }
             }
         } catch (Exception ex) {
-            loge("Exception while parsing input message");
-            ex.printStackTrace();
+            loge(ex);
         }
 
 
@@ -129,7 +128,7 @@ public final class JsonRPCMessageHandler implements MessageReceiver<String> {
         try {
             sender.sendMessage(message);
         } catch (Exception ex) {
-            loge(ex.getMessage());
+            loge(ex);
             throw new RuntimeException(ex);
         }
     }
@@ -151,6 +150,7 @@ public final class JsonRPCMessageHandler implements MessageReceiver<String> {
                 }
             }
         } catch (Exception ex) {
+            loge(ex);
             waitingCallers.remove(rpcCallId);
 
             JSONify.JObject jsonRPCObject = jsoNify.newJson();
@@ -258,8 +258,12 @@ public final class JsonRPCMessageHandler implements MessageReceiver<String> {
         }
     }
 
+    private void loge(Exception exception) {
+        exception.printStackTrace();
+    }
+
     private void loge(String message) {
-        System.err.println("RPCfy: " + message);
+        System.err.println("");
     }
 
     /**

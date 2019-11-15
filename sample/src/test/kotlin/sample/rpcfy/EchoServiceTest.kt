@@ -4,7 +4,6 @@ import junit.framework.Assert.*
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
-import rpcfy.JSONify
 import rpcfy.JsonRPCMessageHandler
 import rpcfy.MessageSender
 import rpcfy.json.GsonJsonify
@@ -394,6 +393,20 @@ class JsonRPCfyTest {
         simulateMessageFailure = true
         var response = echoService.echoString("World")
         fail("Expecting failure")
+    }
+
+
+    @Test
+    fun testNullRpcParam() {
+        val result = echoService.registerListener(null)
+        assertFalse(result)
+    }
+
+    @Test
+    fun testNullRpcReturn() {
+        clientHandler.setLogEnabled(true)
+        val result = echoService.getEchoServiceThatReturnsNull()
+        assertNull(result)
     }
 
 

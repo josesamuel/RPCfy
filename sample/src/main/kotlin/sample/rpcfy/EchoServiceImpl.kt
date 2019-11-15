@@ -103,10 +103,15 @@ class EchoServiceImpl : EchoService {
         return obj2
     }
 
-    override fun registerListener(listener: EchoServiceListener) {
-        listeners.add(listener)
+    override fun registerListener(listener: EchoServiceListener?): Boolean {
+        var result = false
+        listener?.let {
+            listeners.add(it)
+            it.onRegistered()
+            result = true
+        }
         println("Remaining listener count " + listeners.size)
-        listener.onRegistered()
+        return result
     }
 
     override fun unregisterListener(listener: EchoServiceListener) {

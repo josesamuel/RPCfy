@@ -259,7 +259,7 @@ class MethodBuilder extends RpcfyBuilder {
         List<String> paramNames = new ArrayList<>();
         int paramIndex = 0;
 
-        methodBuilder.addStatement("String paramsElement = jsonify.getJSONElement(message, \"params\");");
+        methodBuilder.addStatement("String paramsElement = jsonify.getJSONElement(message, \"params\")");
 
         //pass parameters
         for (final VariableElement param : executableElement.getParameters()) {
@@ -267,11 +267,13 @@ class MethodBuilder extends RpcfyBuilder {
             String paramName = "arg_stb_" + paramIndex;
 
             if (getBindingManager().isParameterOfTypeTPCfy(param.asType())) {
-                methodBuilder.addStatement("int " + paramName + "_id = jsonify.fromJSON(paramsElement, \"" + param.getSimpleName() + "\", int.class)");
-
                 ClassName proxy = ClassName.bestGuess(param.asType().toString() + ClassBuilder.PROXY_SUFFIX);
-                methodBuilder.addStatement("$T " + paramName + " = new $T(rpcHandler, jsonify, " + paramName + "_id)", proxy, proxy);
-
+                methodBuilder.addStatement("$T " + paramName + " = null", proxy);
+                methodBuilder.addStatement("String " + paramName + "_id_json = jsonify.getJSONElement(paramsElement, \"" + param.getSimpleName() + "\")");
+                methodBuilder.beginControlFlow("if ("+ paramName +"_id_json != null)");
+                methodBuilder.addStatement("int " + paramName + "_id = jsonify.fromJSON(paramsElement, \"" + param.getSimpleName() + "\", int.class)");
+                methodBuilder.addStatement(paramName + " = new $T(rpcHandler, jsonify, " + paramName + "_id)", proxy);
+                methodBuilder.endControlFlow();
             } else {
                 String pType = param.asType().toString();
 
@@ -313,9 +315,6 @@ class MethodBuilder extends RpcfyBuilder {
 
                 methodBuilder.addStatement("jsonRPCObject.put(\"result\", result.hashCode())");
 
-                methodBuilder.endControlFlow();
-                methodBuilder.beginControlFlow("else");
-                methodBuilder.addStatement("jsonRPCObject.put(\"result\", \"\")");
                 methodBuilder.endControlFlow();
 
 

@@ -35,7 +35,7 @@ interface EchoService {
 
     fun testMultipleMapParams(strings: Map<Int, String>, obj1: Map<String, MyObj>, obj2: Map<Long, MyObj>?): Map<Long, MyObj>?
 
-    fun registerListener(listener: EchoServiceListener)
+    fun registerListener(listener: EchoServiceListener?) : Boolean
 
     fun unregisterListener(listener: EchoServiceListener)
 
