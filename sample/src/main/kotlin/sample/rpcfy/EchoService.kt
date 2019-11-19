@@ -2,6 +2,8 @@ package sample.rpcfy
 
 
 import rpcfy.annotations.RPCfy
+import java.lang.IllegalArgumentException
+import java.lang.IllegalStateException
 
 
 /**
@@ -42,5 +44,8 @@ interface EchoService {
     fun echoComplexObject(complexObject: ComplexObject?) : ComplexObject?
 
     fun callThatTimesout(timeout:Int) : Int
+
+    @Throws(IllegalStateException::class, IllegalArgumentException::class, CustomException::class, CustomException2Arg::class)
+    fun testExceptionThrown(input:Int):Int
 
 }

@@ -1,5 +1,6 @@
 package sample.rpcfy
 
+import junit.framework.Assert
 import junit.framework.Assert.*
 import org.junit.After
 import org.junit.Before
@@ -8,6 +9,7 @@ import rpcfy.JsonRPCMessageHandler
 import rpcfy.MessageSender
 import rpcfy.json.GsonJsonify
 import java.io.IOException
+import java.lang.IllegalArgumentException
 import java.util.*
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.LinkedBlockingQueue
@@ -21,9 +23,9 @@ import kotlin.collections.HashMap
  */
 class JsonRPCfyTest {
 
-    private var simulateMessageFailure  = false
-    private var simulateCustomJsonEntries  = false
-    private var simulateCustomJsonEntriesReturnedMessage:String?  = ""
+    private var simulateMessageFailure = false
+    private var simulateCustomJsonEntries = false
+    private var simulateCustomJsonEntriesReturnedMessage: String? = ""
 
     //**********************************************************************************
     //Simulating a server
@@ -407,6 +409,55 @@ class JsonRPCfyTest {
         clientHandler.setLogEnabled(true)
         val result = echoService.getEchoServiceThatReturnsNull()
         assertNull(result)
+    }
+
+    @Test
+    fun testExceptionThrown() {
+        try {
+            val result = echoService.testExceptionThrown(0)
+        } catch (expected: IllegalStateException) {
+            assertNotNull(expected.message)
+            println("Got Exception $expected ${expected.message}")
+        } catch (exception: java.lang.Exception) {
+            fail("Expected IllegalState, got $exception")
+        }
+
+        try {
+            val result = echoService.testExceptionThrown(1)
+        } catch (expected: IllegalArgumentException) {
+            assertNotNull(expected.message)
+            println("Got Exception  $expected ${expected.message}")
+        } catch (exception: java.lang.Exception) {
+            fail("Expected IllegalArgumentException, got $exception")
+        }
+
+        try {
+            val result = echoService.testExceptionThrown(2)
+        } catch (expected: CustomException) {
+            assertNotNull(expected.message)
+            println("Got Exception  $expected ${expected.message}")
+        } catch (exception: java.lang.Exception) {
+            fail("Expected CustomException, got $exception")
+        }
+
+        //Only single arg constructor or default construcot exceptions are supported
+        try {
+            val result = echoService.testExceptionThrown(3)
+        } catch (expected: java.lang.RuntimeException) {
+            assertNotNull(expected.message)
+            println("Got Exception  $expected ${expected.message}")
+        } catch (exception: java.lang.Exception) {
+            fail("Expected RuntimeException, got $exception")
+        }
+
+        try {
+            val result = echoService.testExceptionThrown(100)
+        } catch (expected: java.lang.RuntimeException) {
+            assertNotNull(expected.message)
+            println("Got Exception  $expected ${expected.message}")
+        } catch (exception: java.lang.Exception) {
+            fail("Expected RuntimeException, got $exception")
+        }
     }
 
 

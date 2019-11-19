@@ -3,6 +3,7 @@ package rpcfy;
 
 import rpcfy.json.GsonJsonify;
 
+import java.lang.reflect.Constructor;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -158,7 +159,7 @@ public final class JsonRPCMessageHandler implements MessageReceiver<String> {
             JSONify.JObject jsonErrorObject = jsoNify.newJson();
             jsonErrorObject.put("code", -32000);
             jsonErrorObject.put("message", ex.getMessage());
-            jsonErrorObject.put("exception", ex.getClass().getSimpleName());
+            jsonErrorObject.put("exception", ex.getClass().getName());
             jsonRPCObject.put("error", jsonErrorObject);
             rpcCallId.result = jsonRPCObject.toJson();
             loge(ex.getMessage());
@@ -250,6 +251,25 @@ public final class JsonRPCMessageHandler implements MessageReceiver<String> {
      */
     public void setRequestTimeout(long requestTimeout) {
         this.requestTimeout = requestTimeout;
+    }
+
+    /**Internal use to convert exception*/
+    public static <T> T asException(String exceptionName, String exceptionMessage, Class<T> exception) {
+        if (exception.getName().equals(exceptionName)) {
+
+            try {
+                Constructor<T> constructorWithMessage = exception.getConstructor(String.class);
+                return constructorWithMessage.newInstance(exceptionMessage);
+            } catch (Throwable ignored) {
+            }
+
+            try {
+                Constructor<T> constructorWithNoMessage = exception.getConstructor();
+                return constructorWithNoMessage.newInstance();
+            } catch (Throwable ignored) {
+            }
+        }
+        return null;
     }
 
     private void logv(String message) {

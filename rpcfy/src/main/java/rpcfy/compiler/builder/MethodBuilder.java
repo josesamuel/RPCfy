@@ -5,12 +5,8 @@ import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.MethodSpec;
 import com.squareup.javapoet.TypeName;
 import com.squareup.javapoet.TypeSpec;
-
-import java.lang.reflect.Type;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import rpcfy.JSONify;
+import rpcfy.RPCStub;
 
 import javax.annotation.processing.Messager;
 import javax.lang.model.element.Element;
@@ -19,9 +15,11 @@ import javax.lang.model.element.Modifier;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
-
-import rpcfy.JSONify;
-import rpcfy.RPCStub;
+import java.lang.reflect.Type;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 
 /**
@@ -141,6 +139,19 @@ class MethodBuilder extends RpcfyBuilder {
 
             methodBuilder.addStatement("String exception = jsonify.getJSONElement(result, \"error\")");
             methodBuilder.beginControlFlow("if (exception != null)");
+
+            methodBuilder.addStatement("String exceptionClassName = jsonify.fromJSON(exception, \"exception\", String.class)");
+            methodBuilder.addStatement("String exceptionMessage = jsonify.fromJSON(exception, \"message\", String.class)");
+            int exceptionIndex = 0;
+            for (TypeMirror exceptions : executableElement.getThrownTypes()) {
+                methodBuilder.addStatement(exceptions.toString() + " exception_" + exceptionIndex + " = JsonRPCMessageHandler.asException(exceptionClassName, exceptionMessage, " + exceptions.toString() + ".class)");
+                methodBuilder.beginControlFlow("if (exception_" + exceptionIndex + " != null)");
+                methodBuilder.addStatement("throw exception_" + exceptionIndex);
+                methodBuilder.endControlFlow();
+                exceptionIndex ++;
+            }
+
+
             methodBuilder.addStatement("throw new RuntimeException(jsonify.getJSONElement(exception, \"message\"))");
             methodBuilder.endControlFlow();
 
@@ -162,8 +173,7 @@ class MethodBuilder extends RpcfyBuilder {
                     methodBuilder.beginControlFlow("else");
                     methodBuilder.addStatement("return null");
                     methodBuilder.endControlFlow();
-                }
-                else {
+                } else {
                     methodBuilder.addStatement("return jsonify.fromJSON(result, \"result\", genericType)");
                 }
             } else {
@@ -234,7 +244,7 @@ class MethodBuilder extends RpcfyBuilder {
         methodBuilder.addStatement("JSONify.JObject jsonErrorObject = jsonify.newJson()");
         methodBuilder.addStatement("jsonErrorObject.put(\"code\", -32000)");
         methodBuilder.addStatement("jsonErrorObject.put(\"message\", re.getMessage())");
-        methodBuilder.addStatement("jsonErrorObject.put(\"exception\", re.getClass().getSimpleName())");
+        methodBuilder.addStatement("jsonErrorObject.put(\"exception\", re.getClass().getName())");
         methodBuilder.addStatement("jsonRPCObject.put(\"error\", jsonErrorObject)");
         methodBuilder.endControlFlow();
         methodBuilder.addStatement("return jsonRPCObject.toJson()");
@@ -270,7 +280,7 @@ class MethodBuilder extends RpcfyBuilder {
                 ClassName proxy = ClassName.bestGuess(param.asType().toString() + ClassBuilder.PROXY_SUFFIX);
                 methodBuilder.addStatement("$T " + paramName + " = null", proxy);
                 methodBuilder.addStatement("String " + paramName + "_id_json = jsonify.getJSONElement(paramsElement, \"" + param.getSimpleName() + "\")");
-                methodBuilder.beginControlFlow("if ("+ paramName +"_id_json != null)");
+                methodBuilder.beginControlFlow("if (" + paramName + "_id_json != null)");
                 methodBuilder.addStatement("int " + paramName + "_id = jsonify.fromJSON(paramsElement, \"" + param.getSimpleName() + "\", int.class)");
                 methodBuilder.addStatement(paramName + " = new $T(rpcHandler, jsonify, " + paramName + "_id)", proxy);
                 methodBuilder.endControlFlow();
@@ -374,7 +384,6 @@ class MethodBuilder extends RpcfyBuilder {
         addHashCode(classBuilder);
         addEquals(classBuilder);
     }
-
 
 
     /**

@@ -5,6 +5,16 @@ import java.util.*
 
 class EchoServiceImpl : EchoService {
 
+    override fun testExceptionThrown(input: Int): Int {
+        when (input) {
+            0 -> throw IllegalStateException("Not ready")
+            1 -> throw IllegalArgumentException("Not ready")
+            2 -> throw CustomException()
+            3 -> throw CustomException2Arg(1, 2)
+            else -> throw java.lang.Exception("Failed")
+        }
+    }
+
     override fun callThatTimesout(timeout: Int): Int {
         Thread.sleep(timeout.toLong())
         return timeout
