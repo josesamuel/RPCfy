@@ -2,6 +2,7 @@ package sample.rpcfy
 
 
 import rpcfy.annotations.RPCfy
+import rpcfy.annotations.RPCfyNotSupported
 import java.lang.IllegalArgumentException
 import java.lang.IllegalStateException
 
@@ -47,5 +48,8 @@ interface EchoService {
 
     @Throws(IllegalStateException::class, IllegalArgumentException::class, CustomException::class, CustomException2Arg::class)
     fun testExceptionThrown(input:Int):Int
+
+    @RPCfyNotSupported
+    fun nonRpcCall():Int
 
 }

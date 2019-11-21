@@ -1,15 +1,14 @@
 package sample.rpcfy
 
-import junit.framework.Assert
 import junit.framework.Assert.*
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
 import rpcfy.JsonRPCMessageHandler
 import rpcfy.MessageSender
+import rpcfy.RPCNotSupportedException
 import rpcfy.json.GsonJsonify
 import java.io.IOException
-import java.lang.IllegalArgumentException
 import java.util.*
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.LinkedBlockingQueue
@@ -460,6 +459,11 @@ class JsonRPCfyTest {
         }
     }
 
+
+    @Test(expected = RPCNotSupportedException::class)
+    fun testRPCNotSupported() {
+        echoService.nonRpcCall()
+    }
 
     @Test
     @Throws(Exception::class)

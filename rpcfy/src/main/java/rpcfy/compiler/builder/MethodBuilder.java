@@ -6,7 +6,9 @@ import com.squareup.javapoet.MethodSpec;
 import com.squareup.javapoet.TypeName;
 import com.squareup.javapoet.TypeSpec;
 import rpcfy.JSONify;
+import rpcfy.RPCNotSupportedException;
 import rpcfy.RPCStub;
+import rpcfy.annotations.RPCfyNotSupported;
 
 import javax.annotation.processing.Messager;
 import javax.lang.model.element.Element;
@@ -68,6 +70,14 @@ class MethodBuilder extends RpcfyBuilder {
         for (VariableElement params : executableElement.getParameters()) {
             methodBuilder.addParameter(TypeName.get(params.asType()), params.getSimpleName().toString() + "_" + paramIndex);
             paramIndex++;
+        }
+
+        boolean rpcNotSupported = member.getAnnotation(RPCfyNotSupported.class) != null;
+
+        if (rpcNotSupported) {
+            methodBuilder.addStatement("throw new $T(\"Method '" + methodName + "' does not support RPC call\")", RPCNotSupportedException.class);
+            classBuilder.addMethod(methodBuilder.build());
+            return;
         }
 
         //methodBuilder.beginControlFlow("try");

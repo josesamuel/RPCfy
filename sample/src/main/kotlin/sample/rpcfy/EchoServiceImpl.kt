@@ -129,4 +129,7 @@ class EchoServiceImpl : EchoService {
         println("Remaining listener count " + listeners.size)
         listener.onUnRegistered(removed)
     }
+
+    override fun nonRpcCall(): Int  = 1
+
 }
