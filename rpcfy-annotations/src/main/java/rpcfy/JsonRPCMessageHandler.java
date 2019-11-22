@@ -4,6 +4,7 @@ package rpcfy;
 import rpcfy.json.GsonJsonify;
 
 import java.lang.reflect.Constructor;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -25,6 +26,7 @@ public final class JsonRPCMessageHandler implements MessageReceiver<String> {
     private boolean logEnabled;
     private long requestTimeout = REQUEST_TIMEOUT;
     private Map<String, String> requestExtras;
+    private Map<RPCMethodDelegate, Object> delegates = new HashMap<>();
 
     /**
      * Creates an instance of {@link JsonRPCMessageHandler}.
@@ -55,6 +57,20 @@ public final class JsonRPCMessageHandler implements MessageReceiver<String> {
      */
     public void setExtra(Map<String, String> requestExtras) {
         this.requestExtras = requestExtras;
+    }
+
+    /**
+     * Adds a delegate for a given method in a interface.
+     */
+    public void addMethodDelegate(RPCMethodDelegate methodDelegate) {
+        delegates.put(methodDelegate, methodDelegate.getDelegate());
+    }
+
+    /**
+     * Returns any method delegate set for the given method
+     */
+    public Object getMethodDelegate(RPCMethodDelegate delegate){
+        return delegates.get(delegate);
     }
 
     /**
@@ -214,6 +230,7 @@ public final class JsonRPCMessageHandler implements MessageReceiver<String> {
         stubMap.clear();
         stubInstanceMap.clear();
         requestExtras = null;
+        delegates.clear();
     }
 
     /**
@@ -253,7 +270,9 @@ public final class JsonRPCMessageHandler implements MessageReceiver<String> {
         this.requestTimeout = requestTimeout;
     }
 
-    /**Internal use to convert exception*/
+    /**
+     * Internal use to convert exception
+     */
     public static <T> T asException(String exceptionName, String exceptionMessage, Class<T> exception) {
         if (exception.getName().equals(exceptionName)) {
 

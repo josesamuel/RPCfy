@@ -83,7 +83,7 @@ class FieldBuilder extends RpcfyBuilder {
     private void addCommonFields(TypeSpec.Builder classBuilder, Element member, int methodIndex) {
         String methodName = member.getSimpleName().toString();
         classBuilder.addField(FieldSpec.builder(TypeName.INT, "METHOD_" + methodName + "_" + methodIndex)
-                .addModifiers(Modifier.PROTECTED, Modifier.STATIC, Modifier.FINAL)
+                .addModifiers(Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
                 .initializer("" + methodIndex).build());
     }
 }

@@ -6,6 +6,7 @@ import com.squareup.javapoet.MethodSpec;
 import com.squareup.javapoet.TypeName;
 import com.squareup.javapoet.TypeSpec;
 import rpcfy.JSONify;
+import rpcfy.RPCMethodDelegate;
 import rpcfy.RPCNotSupportedException;
 import rpcfy.RPCStub;
 import rpcfy.annotations.RPCfyNotSupported;
@@ -79,6 +80,31 @@ class MethodBuilder extends RpcfyBuilder {
             classBuilder.addMethod(methodBuilder.build());
             return;
         }
+
+        methodBuilder.addStatement(getRemoterInterfaceClassName() + " methodDelegate = (" + getRemoterInterfaceClassName() + ")rpcHandler.getMethodDelegate(new $T(" + getRemoterInterfaceClassName() + ".class, METHOD_" + methodName + "_" + methodIndex + ", null))", RPCMethodDelegate.class);
+        methodBuilder.beginControlFlow("if (methodDelegate != null)");
+        StringBuilder delegateCall = new StringBuilder();
+        if (!isOneWay) {
+            delegateCall.append("return ");
+        }
+        delegateCall.append("methodDelegate.");
+        delegateCall.append(methodName);
+        delegateCall.append("(");
+        paramIndex = 0;
+        int totalParams = executableElement.getParameters().size();
+        for (VariableElement params : executableElement.getParameters()) {
+            delegateCall.append(params.getSimpleName().toString() + "_" + paramIndex);
+            paramIndex++;
+            if (paramIndex < totalParams) {
+                delegateCall.append(",");
+            }
+        }
+        delegateCall.append(")");
+        methodBuilder.addStatement(delegateCall.toString());
+        if (isOneWay) {
+            methodBuilder.addStatement("return");
+        }
+        methodBuilder.endControlFlow();
 
         //methodBuilder.beginControlFlow("try");
 
@@ -158,7 +184,7 @@ class MethodBuilder extends RpcfyBuilder {
                 methodBuilder.beginControlFlow("if (exception_" + exceptionIndex + " != null)");
                 methodBuilder.addStatement("throw exception_" + exceptionIndex);
                 methodBuilder.endControlFlow();
-                exceptionIndex ++;
+                exceptionIndex++;
             }
 
 

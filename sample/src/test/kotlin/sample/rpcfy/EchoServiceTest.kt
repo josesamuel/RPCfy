@@ -6,6 +6,7 @@ import org.junit.Before
 import org.junit.Test
 import rpcfy.JsonRPCMessageHandler
 import rpcfy.MessageSender
+import rpcfy.RPCMethodDelegate
 import rpcfy.RPCNotSupportedException
 import rpcfy.json.GsonJsonify
 import java.io.IOException
@@ -464,6 +465,21 @@ class JsonRPCfyTest {
     fun testRPCNotSupported() {
         echoService.nonRpcCall()
     }
+
+    @Test
+    fun testDelegate() {
+        val nonDelegated = echoService.testDelegateIntercept()
+        assertEquals(100, nonDelegated)
+
+        clientHandler.addMethodDelegate(RPCMethodDelegate(EchoService::class.java, EchoService_JsonRpcProxy.METHOD_testDelegateIntercept_18,
+                object : EchoService by echoService {
+                    override fun testDelegateIntercept() = 200
+                }))
+
+        assertEquals(200, echoService.testDelegateIntercept())
+
+    }
+
 
     @Test
     @Throws(Exception::class)

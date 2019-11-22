@@ -52,4 +52,6 @@ interface EchoService {
     @RPCfyNotSupported
     fun nonRpcCall():Int
 
+    fun testDelegateIntercept():Int
+
 }

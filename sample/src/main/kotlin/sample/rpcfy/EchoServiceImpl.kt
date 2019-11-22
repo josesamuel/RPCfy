@@ -132,4 +132,7 @@ class EchoServiceImpl : EchoService {
 
     override fun nonRpcCall(): Int  = 1
 
+    override fun testDelegateIntercept() = 100
+
+
 }
