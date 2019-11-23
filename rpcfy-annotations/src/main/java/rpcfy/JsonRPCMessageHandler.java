@@ -61,6 +61,9 @@ public final class JsonRPCMessageHandler implements MessageReceiver<String> {
 
     /**
      * Adds a delegate for a given method in a interface.
+     * If this is added to the proxy side, the method will be called on the given instance without proxying to stub.
+     * If this is added to the stub side, the method will be called on the given instance instead of the implementation
+     * that the stub is wrapping
      */
     public void addMethodDelegate(RPCMethodDelegate methodDelegate) {
         delegates.put(methodDelegate, methodDelegate.getDelegate());
@@ -69,7 +72,7 @@ public final class JsonRPCMessageHandler implements MessageReceiver<String> {
     /**
      * Returns any method delegate set for the given method
      */
-    public Object getMethodDelegate(RPCMethodDelegate delegate){
+    public Object getMethodDelegate(RPCMethodDelegate delegate) {
         return delegates.get(delegate);
     }
 

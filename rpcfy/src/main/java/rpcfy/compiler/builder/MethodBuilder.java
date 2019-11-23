@@ -334,7 +334,13 @@ class MethodBuilder extends RpcfyBuilder {
             paramIndex++;
         }
 
-        String methodCall = "service." + methodName + "(";
+        methodBuilder.addStatement(getRemoterInterfaceClassName() + " methodImpl = service");
+        methodBuilder.addStatement(getRemoterInterfaceClassName() + " methodDelegate = (" + getRemoterInterfaceClassName() + ")rpcHandler.getMethodDelegate(new $T(" + getRemoterInterfaceClassName() + ".class, METHOD_" + methodName + "_" + methodIndex + ", null))", RPCMethodDelegate.class);
+        methodBuilder.beginControlFlow("if (methodDelegate != null)");
+        methodBuilder.addStatement("methodImpl =  methodDelegate");
+        methodBuilder.endControlFlow();
+
+        String methodCall = "methodImpl." + methodName + "(";
         int paramSize = paramNames.size();
         for (int paramCount = 0; paramCount < paramSize; paramCount++) {
             methodCall += paramNames.get(paramCount);

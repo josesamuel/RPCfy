@@ -3,7 +3,7 @@ package rpcfy;
 /**
  * Represents a delegate to be called for a method in an interface is marked as {@link rpcfy.annotations.RPCfy}.
  * <p>
- * Use this to selectively delegate a method to a local delegate instead of to be proxied through RPC
+ * Use this to selectively delegate a method either at the proxy side or at stub side
  *
  * @param <T> The interface that is marked as {@link rpcfy.annotations.RPCfy}
  *
