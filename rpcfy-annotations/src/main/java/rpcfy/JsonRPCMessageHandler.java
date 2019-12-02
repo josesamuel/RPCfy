@@ -27,6 +27,7 @@ public final class JsonRPCMessageHandler implements MessageReceiver<String> {
     private long requestTimeout = REQUEST_TIMEOUT;
     private Map<String, String> requestExtras;
     private Map<RPCMethodDelegate, Object> delegates = new HashMap<>();
+    private Map<RPCMethodDelegate, String> rpcMessage = new HashMap<>();
 
     /**
      * Creates an instance of {@link JsonRPCMessageHandler}.
@@ -74,6 +75,24 @@ public final class JsonRPCMessageHandler implements MessageReceiver<String> {
      */
     public Object getMethodDelegate(RPCMethodDelegate delegate) {
         return delegates.get(delegate);
+    }
+
+    /**
+     * Called internally to set the original json message that resulted in a method invocation
+     */
+    public void setOriginalMessage(RPCMethodDelegate method, String message) {
+        if (message == null) {
+            rpcMessage.remove(method);
+        } else {
+            rpcMessage.put(method, message);
+        }
+    }
+
+    /**
+     * Returns the original json message that resulted in the invocation of the given method
+     */
+    public String getOriginalMessage(RPCMethodDelegate method) {
+        return rpcMessage.get(method);
     }
 
     /**
@@ -234,6 +253,7 @@ public final class JsonRPCMessageHandler implements MessageReceiver<String> {
         stubInstanceMap.clear();
         requestExtras = null;
         delegates.clear();
+        rpcMessage.clear();
     }
 
     /**

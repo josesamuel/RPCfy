@@ -239,6 +239,7 @@ class MethodBuilder extends RpcfyBuilder {
                 .addParameter(int.class, "methodID")
                 .addParameter(String.class, "message");
 
+        methodBuilder.addStatement("$T rpc_method_delegate = null", RPCMethodDelegate.class);
         methodBuilder.addStatement("$T jsonRPCObject = jsonify.newJson()", JSONify.JObject.class);
         methodBuilder.addStatement("jsonRPCObject.put(\"jsonrpc\", \"2.0\")");
         methodBuilder.addStatement("jsonRPCObject.put(\"interface\", getStubInterfaceName())");
@@ -283,6 +284,12 @@ class MethodBuilder extends RpcfyBuilder {
         methodBuilder.addStatement("jsonErrorObject.put(\"exception\", re.getClass().getName())");
         methodBuilder.addStatement("jsonRPCObject.put(\"error\", jsonErrorObject)");
         methodBuilder.endControlFlow();
+
+        methodBuilder.beginControlFlow("if (rpc_method_delegate != null)");
+        methodBuilder.addStatement("rpcHandler.setOriginalMessage(rpc_method_delegate, null)");
+        methodBuilder.endControlFlow();
+
+
         methodBuilder.addStatement("return jsonRPCObject.toJson()");
 
         classBuilder.addMethod(methodBuilder.build());
@@ -335,10 +342,14 @@ class MethodBuilder extends RpcfyBuilder {
         }
 
         methodBuilder.addStatement(getRemoterInterfaceClassName() + " methodImpl = service");
-        methodBuilder.addStatement(getRemoterInterfaceClassName() + " methodDelegate = (" + getRemoterInterfaceClassName() + ")rpcHandler.getMethodDelegate(new $T(" + getRemoterInterfaceClassName() + ".class, METHOD_" + methodName + "_" + methodIndex + ", null))", RPCMethodDelegate.class);
+        methodBuilder.addStatement("rpc_method_delegate = new $T(" + getRemoterInterfaceClassName() + ".class, METHOD_" + methodName + "_" + methodIndex + ", null)", RPCMethodDelegate.class);
+        methodBuilder.addStatement(getRemoterInterfaceClassName() + " methodDelegate = (" + getRemoterInterfaceClassName() + ")rpcHandler.getMethodDelegate(rpc_method_delegate)");
         methodBuilder.beginControlFlow("if (methodDelegate != null)");
         methodBuilder.addStatement("methodImpl =  methodDelegate");
         methodBuilder.endControlFlow();
+
+        methodBuilder.addStatement("rpc_method_delegate.setInstanceId(methodImpl.hashCode())");
+        methodBuilder.addStatement("rpcHandler.setOriginalMessage(rpc_method_delegate, message)");
 
         String methodCall = "methodImpl." + methodName + "(";
         int paramSize = paramNames.size();

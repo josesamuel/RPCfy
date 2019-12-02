@@ -3,7 +3,7 @@ package sample.rpcfy
 import java.util.*
 
 
-class EchoServiceImpl : EchoService {
+open class EchoServiceImpl : EchoService {
 
     override fun testExceptionThrown(input: Int): Int {
         when (input) {

@@ -79,7 +79,15 @@ class JsonRPCfyTest {
         running = true
         serverHandler = JsonRPCMessageHandler(serverMessageSender)
         //creates the stub for IEchoService wrapping the real implementation and register with handler
-        serverHandler.registerStub(EchoService_JsonRpcStub(serverHandler, EchoServiceImpl()))
+        serverHandler.registerStub(EchoService_JsonRpcStub(serverHandler, object : EchoServiceImpl() {
+            override fun testDelegateIntercept(): Int {
+                val rpcDelegate = RPCMethodDelegate(EchoService::class.java, EchoService_JsonRpcStub.METHOD_testDelegateIntercept_18, null)
+                rpcDelegate.setInstanceId(this.hashCode())
+                val originalMessage = serverHandler.getOriginalMessage(rpcDelegate)
+                println("Original Message at impl $originalMessage)")
+                return super.testDelegateIntercept()
+            }
+        }))
         serverThread = object : Thread() {
             override fun run() {
                 while (running) {
@@ -484,15 +492,26 @@ class JsonRPCfyTest {
         val nonDelegated = echoService.testDelegateIntercept()
         assertEquals(100, nonDelegated)
 
-        serverHandler.addMethodDelegate(RPCMethodDelegate(EchoService::class.java, EchoService_JsonRpcStub.METHOD_testDelegateIntercept_18,
-                object : EchoService by echoService {
-                    override fun testDelegateIntercept() = 300
-                }))
 
+        val echoDelegate = object : EchoService by echoService {
+            override fun testDelegateIntercept(): Int {
+                val rpcDelegate = RPCMethodDelegate(EchoService::class.java, EchoService_JsonRpcStub.METHOD_testDelegateIntercept_18, null)
+                rpcDelegate.setInstanceId(this.hashCode())
+                val originalMessage = serverHandler.getOriginalMessage(rpcDelegate)
+                println("Original Message at delegate $originalMessage)")
+                assertNotNull(originalMessage)
+                return 300
+            }
+        }
+        serverHandler.addMethodDelegate(RPCMethodDelegate(EchoService::class.java, EchoService_JsonRpcStub.METHOD_testDelegateIntercept_18,echoDelegate))
         assertEquals(300, echoService.testDelegateIntercept())
 
+        val rpcDelegate = RPCMethodDelegate(EchoService::class.java, EchoService_JsonRpcStub.METHOD_testDelegateIntercept_18, null)
+        rpcDelegate.setInstanceId(echoDelegate.hashCode())
+        val originalMessage = serverHandler.getOriginalMessage(rpcDelegate)
+        println("Original Message after call $originalMessage)")
+        assertNull(originalMessage)
     }
-
 
 
     @Test
