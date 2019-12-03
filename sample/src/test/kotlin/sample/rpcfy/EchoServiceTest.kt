@@ -515,6 +515,123 @@ class JsonRPCfyTest {
 
 
     @Test
+    fun testListenerSendingOriginalCustom() {
+
+        val registerLatch0 = CountDownLatch(1)
+        val unregisterLatch0 = CountDownLatch(1)
+        val callbackLatch0 = CountDownLatch(1)
+
+
+        val registerLatch1 = CountDownLatch(1)
+        val unregisterLatch1 = CountDownLatch(1)
+        val callbackLatch1 = CountDownLatch(1)
+
+        val echoString1 = "Hello"
+        var originalMessageInListenerCallBack:String? = null
+
+        val listener0 = object : EchoServiceListener {
+            private var listenerUnregistered: Boolean = false
+
+            override fun onUnRegistered(success: Boolean) {
+                listenerUnregistered = true
+                unregisterLatch0.countDown()
+            }
+
+            override fun onRegistered() {
+                registerLatch0.countDown()
+            }
+
+
+            override fun onEcho(input: String) {
+
+                val rpcDelegate = RPCMethodDelegate(EchoServiceListener::class.java, EchoServiceListener_JsonRpcStub.METHOD_onEcho_3, null)
+                rpcDelegate.setInstanceId(this.hashCode())
+                originalMessageInListenerCallBack = clientHandler.getOriginalMessage(rpcDelegate)
+
+                println("Original Message in first listener $originalMessageInListenerCallBack")
+                callbackLatch0.countDown()
+            }
+
+        }
+
+        val listener = object : EchoServiceListener {
+            private var listenerUnregistered: Boolean = false
+
+            override fun onUnRegistered(success: Boolean) {
+                listenerUnregistered = true
+                unregisterLatch1.countDown()
+            }
+
+            override fun onRegistered() {
+                registerLatch1.countDown()
+            }
+
+
+            override fun onEcho(input: String) {
+
+                val rpcDelegate = RPCMethodDelegate(EchoServiceListener::class.java, EchoServiceListener_JsonRpcStub.METHOD_onEcho_3, null)
+                rpcDelegate.setInstanceId(this.hashCode())
+                originalMessageInListenerCallBack = clientHandler.getOriginalMessage(rpcDelegate)
+
+                println("Original Message $originalMessageInListenerCallBack")
+                callbackLatch1.countDown()
+            }
+
+        }
+
+        echoService.registerListener(listener0)
+        registerLatch0.await()
+
+
+        echoService.echoString(echoString1)
+        callbackLatch0.await()
+
+        val jsonify = GsonJsonify()
+        //custom_xxx keys should come back
+        assertNull(jsonify.fromJSON(originalMessageInListenerCallBack, "custom_string", String::class.java))
+        assertNull( jsonify.fromJSON(originalMessageInListenerCallBack, "custom_int", Int::class.java))
+        assertNull(jsonify.fromJSON(originalMessageInListenerCallBack, "custom_obj", MyObj::class.java)?.age)
+        //non custom should not be back (unless other end adds it back)
+        assertNull(jsonify.fromJSON(originalMessageInListenerCallBack, "foo", String::class.java))
+
+        echoService.unregisterListener(listener0)
+        unregisterLatch0.await()
+
+
+
+        val customExtras = mutableMapOf<String, String>()
+        customExtras["custom_string"] = "Hello"
+        customExtras["custom_int"] = "1"
+        val jsonify1 = GsonJsonify()
+        val jsonObj = jsonify1.toJson(MyObj("Hello", 1))
+        customExtras["custom_obj"] = jsonObj.toJson()
+        customExtras["foo"] = "bar"
+        clientHandler.setExtra(customExtras)
+        println("Extras set $customExtras")
+
+        echoService.registerListener(listener)
+        registerLatch1.await()
+
+
+        echoService.echoString(echoString1)
+        callbackLatch1.await()
+
+
+        //custom_xxx keys should come back
+        assertEquals("Hello", jsonify.fromJSON(originalMessageInListenerCallBack, "custom_string", String::class.java))
+        assertEquals(1, jsonify.fromJSON(originalMessageInListenerCallBack, "custom_int", Int::class.java))
+        assertEquals(1, jsonify.fromJSON(originalMessageInListenerCallBack, "custom_obj", MyObj::class.java).age)
+        //non custom should not be back (unless other end adds it back)
+        assertNull(jsonify.fromJSON(originalMessageInListenerCallBack, "foo", String::class.java))
+
+
+
+        echoService.unregisterListener(listener)
+        unregisterLatch1.await()
+    }
+
+
+    @Test
     @Throws(Exception::class)
     fun testCustomJsonEntries() {
         simulateCustomJsonEntries = true

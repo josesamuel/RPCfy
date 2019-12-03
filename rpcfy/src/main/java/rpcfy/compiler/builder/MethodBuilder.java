@@ -1,10 +1,7 @@
 package rpcfy.compiler.builder;
 
 import com.google.gson.reflect.TypeToken;
-import com.squareup.javapoet.ClassName;
-import com.squareup.javapoet.MethodSpec;
-import com.squareup.javapoet.TypeName;
-import com.squareup.javapoet.TypeSpec;
+import com.squareup.javapoet.*;
 import rpcfy.JSONify;
 import rpcfy.RPCMethodDelegate;
 import rpcfy.RPCNotSupportedException;
@@ -19,10 +16,7 @@ import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import java.lang.reflect.Type;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 
 /**
@@ -166,6 +160,12 @@ class MethodBuilder extends RpcfyBuilder {
         methodBuilder.endControlFlow();
         methodBuilder.endControlFlow();
 
+        methodBuilder.beginControlFlow("if (this.customExtras != null)");
+        methodBuilder.beginControlFlow("for (String key:this.customExtras.keySet())");
+        methodBuilder.addStatement("jsonRPCObject.putJson(key, this.customExtras.get(key))");
+        methodBuilder.endControlFlow();
+        methodBuilder.endControlFlow();
+
 
         if (isOneWay) {
             methodBuilder.addStatement("rpcHandler.sendMessage(jsonRPCObject.toJson())");
@@ -240,6 +240,7 @@ class MethodBuilder extends RpcfyBuilder {
                 .addParameter(String.class, "message");
 
         methodBuilder.addStatement("$T rpc_method_delegate = null", RPCMethodDelegate.class);
+        methodBuilder.addStatement("$T customExtras = null", ParameterizedTypeName.get(Map.class, String.class, String.class));
         methodBuilder.addStatement("$T jsonRPCObject = jsonify.newJson()", JSONify.JObject.class);
         methodBuilder.addStatement("jsonRPCObject.put(\"jsonrpc\", \"2.0\")");
         methodBuilder.addStatement("jsonRPCObject.put(\"interface\", getStubInterfaceName())");
@@ -249,12 +250,15 @@ class MethodBuilder extends RpcfyBuilder {
         //add custom entries back
 
         methodBuilder.beginControlFlow("if (message.contains(\"custom_\"))");
+        methodBuilder.addStatement("customExtras = new $T<>()", HashMap.class);
         methodBuilder.addStatement("$T requestElement = jsonify.fromJson(message)", JSONify.JElement.class);
         methodBuilder.addStatement("$T<String> requestParams = requestElement.getKeys()", Set.class);
         methodBuilder.beginControlFlow("if (requestParams != null)");
         methodBuilder.beginControlFlow("for (String key : requestElement.getKeys())");
         methodBuilder.beginControlFlow("if (key.startsWith(\"custom_\"))");
-        methodBuilder.addStatement("jsonRPCObject.putJson(key, requestElement.getJsonValue(key))");
+        methodBuilder.addStatement("String _custom_value = requestElement.getJsonValue(key)");
+        methodBuilder.addStatement("jsonRPCObject.putJson(key, _custom_value)");
+        methodBuilder.addStatement("customExtras.put(key, _custom_value)");
         methodBuilder.endControlFlow();
         methodBuilder.endControlFlow();
         methodBuilder.endControlFlow();
@@ -326,6 +330,7 @@ class MethodBuilder extends RpcfyBuilder {
                 methodBuilder.beginControlFlow("if (" + paramName + "_id_json != null)");
                 methodBuilder.addStatement("int " + paramName + "_id = jsonify.fromJSON(paramsElement, \"" + param.getSimpleName() + "\", int.class)");
                 methodBuilder.addStatement(paramName + " = new $T(rpcHandler, jsonify, " + paramName + "_id)", proxy);
+                methodBuilder.addStatement(paramName + ".setRPCfyCustomExtras(customExtras)");
                 methodBuilder.endControlFlow();
             } else {
                 String pType = param.asType().toString();
@@ -436,8 +441,21 @@ class MethodBuilder extends RpcfyBuilder {
     private void addProxyExtras(TypeSpec.Builder classBuilder) {
         addHashCode(classBuilder);
         addEquals(classBuilder);
+        addRpcProxyMethods(classBuilder);
     }
 
+    /**
+     * Add proxy method to set hashcode to uniqueu id of binder
+     */
+    private void addRpcProxyMethods(TypeSpec.Builder classBuilder) {
+        MethodSpec.Builder methodBuilder = MethodSpec.methodBuilder("setRPCfyCustomExtras")
+                .addModifiers(Modifier.PUBLIC)
+                .returns(void.class)
+                .addAnnotation(Override.class)
+                .addParameter(ParameterizedTypeName.get(Map.class, String.class, String.class), "customExtras")
+                .addStatement("this.customExtras = customExtras");
+        classBuilder.addMethod(methodBuilder.build());
+    }
 
     /**
      * Add proxy method to set hashcode to uniqueu id of binder

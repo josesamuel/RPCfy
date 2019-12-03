@@ -43,6 +43,9 @@ class FieldBuilder extends RpcfyBuilder {
         classBuilder.addField(FieldSpec.builder(Integer.class, "remoteID")
                 .addModifiers(Modifier.PRIVATE).build());
 
+        classBuilder.addField(FieldSpec.builder(ParameterizedTypeName.get(Map.class, String.class, String.class), "customExtras")
+                .addModifiers(Modifier.PRIVATE).build());
+
 
         final int[] lastMethodIndex = {0};
         processRemoterElements(classBuilder, new ElementVisitor() {
