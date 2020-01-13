@@ -488,6 +488,21 @@ class JsonRPCfyTest {
     }
 
     @Test
+    fun testDelegateProxyIntercept() {
+        val nonDelegated = echoService.testDelegateIntercept()
+        assertEquals(100, nonDelegated)
+
+        clientHandler.addMethodDelegate(RPCMethodDelegate(EchoService::class.java, EchoService_JsonRpcProxy.METHOD_testDelegateIntercept_18,
+                object : EchoService by echoService {
+                    override fun testDelegateIntercept() : Int {
+                        throw RPCMethodDelegate.DelegateIgnoreException()
+                    }
+                }))
+
+        assertEquals(100, echoService.testDelegateIntercept())
+    }
+
+    @Test
     fun testDelegateStub() {
         val nonDelegated = echoService.testDelegateIntercept()
         assertEquals(100, nonDelegated)

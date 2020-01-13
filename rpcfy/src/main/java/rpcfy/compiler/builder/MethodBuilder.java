@@ -77,6 +77,7 @@ class MethodBuilder extends RpcfyBuilder {
 
         methodBuilder.addStatement(getRemoterInterfaceClassName() + " methodDelegate = (" + getRemoterInterfaceClassName() + ")rpcHandler.getMethodDelegate(new $T(" + getRemoterInterfaceClassName() + ".class, METHOD_" + methodName + "_" + methodIndex + ", null))", RPCMethodDelegate.class);
         methodBuilder.beginControlFlow("if (methodDelegate != null)");
+        methodBuilder.beginControlFlow("try");
         StringBuilder delegateCall = new StringBuilder();
         if (!isOneWay) {
             delegateCall.append("return ");
@@ -98,6 +99,9 @@ class MethodBuilder extends RpcfyBuilder {
         if (isOneWay) {
             methodBuilder.addStatement("return");
         }
+        methodBuilder.endControlFlow();
+        methodBuilder.beginControlFlow("catch($T delegateException)", RPCMethodDelegate.DelegateIgnoreException.class);
+        methodBuilder.endControlFlow();
         methodBuilder.endControlFlow();
 
         //methodBuilder.beginControlFlow("try");

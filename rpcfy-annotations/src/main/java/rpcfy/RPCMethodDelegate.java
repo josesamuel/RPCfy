@@ -4,6 +4,8 @@ package rpcfy;
  * Represents a delegate to be called for a method in an interface is marked as {@link rpcfy.annotations.RPCfy}.
  * <p>
  * Use this to selectively delegate a method either at the proxy side or at stub side
+ * <p>
+ * If the delegated method throws {@link DelegateIgnoreException}, then the normal RPC method call will be attempted.
  *
  * @param <T> The interface that is marked as {@link rpcfy.annotations.RPCfy}
  * @see JsonRPCMessageHandler#addMethodDelegate(RPCMethodDelegate)
@@ -67,5 +69,11 @@ public class RPCMethodDelegate<T> {
      */
     T getDelegate() {
         return delegate;
+    }
+
+    /**
+     * An exception that can be thrown from any delegated method so that the normal rpc call can instead be attempted.
+     */
+    public static class DelegateIgnoreException extends RuntimeException {
     }
 }
