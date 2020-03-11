@@ -358,6 +358,7 @@ class MethodBuilder extends RpcfyBuilder {
         methodBuilder.endControlFlow();
 
         methodBuilder.addStatement("rpc_method_delegate.setInstanceId(methodImpl.hashCode())");
+        methodBuilder.addStatement("onDispatchTransaction(rpc_method_delegate)");
         methodBuilder.addStatement("rpcHandler.setOriginalMessage(rpc_method_delegate, message)");
 
         String methodCall = "methodImpl." + methodName + "(";
@@ -434,6 +435,13 @@ class MethodBuilder extends RpcfyBuilder {
                 .addAnnotation(Override.class)
                 .returns(Object.class)
                 .addStatement("return service");
+
+        classBuilder.addMethod(methodBuilder.build());
+
+        methodBuilder = MethodSpec.methodBuilder("onDispatchTransaction")
+                .addModifiers(Modifier.PUBLIC)
+                .addParameter(RPCMethodDelegate.class, "methodDelegate")
+                .addJavadoc("Override to intercept before stub method is called\n");
 
         classBuilder.addMethod(methodBuilder.build());
 

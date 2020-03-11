@@ -69,17 +69,19 @@ class JsonRPCfyTest {
     private var running: Boolean = false
     private lateinit var echoService: EchoService
     private val DEBUG = false
+    private var throwExceptionFromDispatch = false
 
 
     @Before
     fun setup() {
+        throwExceptionFromDispatch = false
         simulateMessageFailure = false
         simulateCustomJsonEntries = false
         simulateCustomJsonEntriesReturnedMessage = ""
         running = true
         serverHandler = JsonRPCMessageHandler(serverMessageSender)
         //creates the stub for IEchoService wrapping the real implementation and register with handler
-        serverHandler.registerStub(EchoService_JsonRpcStub(serverHandler, object : EchoServiceImpl() {
+        serverHandler.registerStub(object : EchoService_JsonRpcStub(serverHandler, object : EchoServiceImpl() {
             override fun testDelegateIntercept(): Int {
                 val rpcDelegate = RPCMethodDelegate(EchoService::class.java, EchoService_JsonRpcStub.METHOD_testDelegateIntercept_18, null)
                 rpcDelegate.setInstanceId(this.hashCode())
@@ -87,7 +89,14 @@ class JsonRPCfyTest {
                 println("Original Message at impl $originalMessage)")
                 return super.testDelegateIntercept()
             }
-        }))
+        }) {
+            override fun onDispatchTransaction(methodDelegate: RPCMethodDelegate<*>) {
+                super.onDispatchTransaction(methodDelegate)
+                if (throwExceptionFromDispatch && methodDelegate.methodId == EchoService_JsonRpcStub.METHOD_echoString_3) {
+                    throw java.lang.IllegalStateException("Call not allowed")
+                }
+            }
+        })
         serverThread = object : Thread() {
             override fun run() {
                 while (running) {
@@ -179,6 +188,25 @@ class JsonRPCfyTest {
 
         response = echoService.echoString(null)
         assertNull(response)
+    }
+
+    @Test (expected = java.lang.RuntimeException::class)
+    @Throws(Exception::class)
+    fun testDispatchIntercept() {
+        var response = echoService.echoString("World")
+        assertEquals("WorldResult", response)
+
+        response = echoService.echoString(null)
+        assertNull(response)
+
+        throwExceptionFromDispatch = true
+
+        val input = MyObj("Foo", 1)
+        val objRes = echoService.echoObject(input)
+        assertEquals(input, objRes)
+
+        echoService.echoString("World")
+        fail("Should not happen")
     }
 
     @Test

@@ -76,4 +76,14 @@ public class RPCMethodDelegate<T> {
      */
     public static class DelegateIgnoreException extends RuntimeException {
     }
+
+    @Override
+    public String toString() {
+        return "RPCMethodDelegate [" + interfaceClass +  " : " + methodId + ":" + instanceId + ":" + delegate + "]";
+    }
+
+    public final int getMethodId() {
+        return methodId;
+    }
+
 }
