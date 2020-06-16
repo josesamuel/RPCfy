@@ -138,8 +138,22 @@ public final class JsonRPCMessageHandler implements MessageReceiver<String> {
                 //result call
                 int methodId = jsoNify.fromJSON(message, "method_id", int.class);
                 int callId = jsoNify.fromJSON(message, "id", int.class);
-                RPCCallId rpcCallId = new RPCCallId(stubInterface, methodId, callId);
+                RPCCallId rpcCallId;
+                if (jsoNify.getJSONElement(message, "ins_id") != null) {
+                    int instanceId = jsoNify.fromJSON(message, "ins_id", int.class);
+                    rpcCallId = new RPCCallId(stubInterface, methodId, callId, instanceId);
+                } else {
+                    rpcCallId = new RPCCallId(stubInterface, methodId, callId);
+                }
                 RPCCallId waitingReq = waitingCallers.get(rpcCallId);
+                if (waitingReq == null && !rpcCallId.compareInstanceId) {
+                    for (RPCCallId req : waitingCallers.keySet()) {
+                        if (req.equals(rpcCallId)) {
+                            waitingReq = req;
+                            break;
+                        }
+                    }
+                }
                 if (waitingReq != null) {
                     synchronized (waitingReq) {
                         waitingReq.result = message;
@@ -148,7 +162,7 @@ public final class JsonRPCMessageHandler implements MessageReceiver<String> {
                 } else {
                     String result = jsoNify.fromJSON(message, "result", String.class);
                     if (result != null && !result.isEmpty()) {
-                        logv("No Waiting request found for response " + message);
+                        loge("No Waiting request found for response " + message);
                     }
                 }
             }
@@ -175,8 +189,8 @@ public final class JsonRPCMessageHandler implements MessageReceiver<String> {
     /**
      * Used internally by generated Proxy/Stub to send the message using the {@link MessageSender} associated with this
      */
-    public String sendMessageAndWaitForResponse(String message, String interfaceName, int methodID, int rpcID) {
-        final RPCCallId rpcCallId = new RPCCallId(interfaceName, methodID, rpcID);
+    public String sendMessageAndWaitForResponse(String message, String interfaceName, int methodID, int rpcID, int proxyInstanceId) {
+        final RPCCallId rpcCallId = new RPCCallId(interfaceName, methodID, rpcID, proxyInstanceId);
         logv("Sending and waiting " + message + " , " + rpcCallId);
         try {
             waitingCallers.put(rpcCallId, rpcCallId);
@@ -325,7 +339,7 @@ public final class JsonRPCMessageHandler implements MessageReceiver<String> {
     }
 
     private void loge(String message) {
-        System.err.println("");
+        System.err.println(message);
     }
 
     /**
@@ -335,31 +349,42 @@ public final class JsonRPCMessageHandler implements MessageReceiver<String> {
         private String interfaceName;
         private int methodId;
         private int callId;
+        private int instanceId;
+        private boolean compareInstanceId;
         private String result;
 
-        RPCCallId(String interfaceNamem, int methodId, int callId) {
-            this.interfaceName = interfaceNamem;
+        RPCCallId(String interfaceName, int methodId, int callId) {
+            this.interfaceName = interfaceName;
             this.methodId = methodId;
             this.callId = callId;
         }
 
+        RPCCallId(String interfaceName, int methodId, int callId, int instanceId) {
+            this(interfaceName, methodId, callId);
+            this.instanceId = instanceId;
+            this.compareInstanceId = true;
+        }
+
         @Override
         public int hashCode() {
-            return interfaceName.hashCode() * 67 + methodId * 89 + callId * 97;
+            return interfaceName.hashCode() * 67 + methodId * 89 + callId * 97 + instanceId * 71;
         }
 
         @Override
         public boolean equals(Object o) {
             if (o instanceof RPCCallId) {
                 RPCCallId other = (RPCCallId) o;
-                return interfaceName.equals(other.interfaceName) && methodId == other.methodId && callId == other.callId;
+                return interfaceName.equals(other.interfaceName)
+                        && methodId == other.methodId
+                        && callId == other.callId
+                        && (!compareInstanceId || !other.compareInstanceId || (instanceId == other.instanceId));
             }
             return false;
         }
 
         @Override
         public String toString() {
-            return interfaceName + " " + methodId + " " + callId;
+            return interfaceName + " " + methodId + " " + callId + " " + instanceId;
         }
     }
 

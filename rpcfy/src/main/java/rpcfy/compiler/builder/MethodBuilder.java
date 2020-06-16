@@ -111,11 +111,13 @@ class MethodBuilder extends RpcfyBuilder {
         methodBuilder.addStatement("String interfaceName = \"" + getRemteInterfaceFQName() + "\"");
         methodBuilder.addStatement("int methodID = METHOD_" + methodName + "_" + methodIndex);
         methodBuilder.addStatement("int rpcCallId = idGenerator.incrementAndGet()");
+        methodBuilder.addStatement("int proxyInstanceId = super.hashCode()");
 
         methodBuilder.addStatement("jsonRPCObject.put(\"jsonrpc\", \"2.0\")");
         methodBuilder.addStatement("jsonRPCObject.put(\"method\", \"" + methodName + "\")");
         methodBuilder.addStatement("jsonRPCObject.put(\"interface\", interfaceName )");
         methodBuilder.addStatement("jsonRPCObject.put(\"method_id\", methodID)");
+        methodBuilder.addStatement("jsonRPCObject.put(\"ins_id\", proxyInstanceId)");
         methodBuilder.beginControlFlow("if (remoteID != null)");
         methodBuilder.addStatement("jsonRPCObject.put(\"remote_id\", remoteID)");
         methodBuilder.endControlFlow();
@@ -175,7 +177,7 @@ class MethodBuilder extends RpcfyBuilder {
             methodBuilder.addStatement("rpcHandler.sendMessage(jsonRPCObject.toJson())");
         } else {
             methodBuilder.addStatement("String result");
-            methodBuilder.addStatement("result = rpcHandler.sendMessageAndWaitForResponse(jsonRPCObject.toJson(), interfaceName, methodID, rpcCallId)");
+            methodBuilder.addStatement("result = rpcHandler.sendMessageAndWaitForResponse(jsonRPCObject.toJson(), interfaceName, methodID, rpcCallId, proxyInstanceId)");
 
             methodBuilder.addStatement("String exception = jsonify.getJSONElement(result, \"error\")");
             methodBuilder.beginControlFlow("if (exception != null)");
@@ -250,7 +252,9 @@ class MethodBuilder extends RpcfyBuilder {
         methodBuilder.addStatement("jsonRPCObject.put(\"interface\", getStubInterfaceName())");
         methodBuilder.addStatement("jsonRPCObject.put(\"method_id\", methodID)");
         methodBuilder.addStatement("jsonRPCObject.put(\"id\", jsonify.fromJSON(message, \"id\", int.class))");
-
+        methodBuilder.beginControlFlow("if (jsonify.getJSONElement(message, \"ins_id\") != null)");
+        methodBuilder.addStatement("jsonRPCObject.put(\"ins_id\", jsonify.fromJSON(message, \"ins_id\", int.class))");
+        methodBuilder.endControlFlow();
         //add custom entries back
 
         methodBuilder.beginControlFlow("if (message.contains(\"custom_\"))");

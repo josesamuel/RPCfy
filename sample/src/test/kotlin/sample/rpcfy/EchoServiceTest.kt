@@ -14,6 +14,7 @@ import java.util.*
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.LinkedBlockingQueue
 import kotlin.collections.HashMap
+import kotlin.concurrent.thread
 
 
 /**
@@ -68,7 +69,7 @@ class JsonRPCfyTest {
 
     private var running: Boolean = false
     private lateinit var echoService: EchoService
-    private val DEBUG = false
+    private val DEBUG = true
     private var throwExceptionFromDispatch = false
 
 
@@ -189,6 +190,32 @@ class JsonRPCfyTest {
         response = echoService.echoString(null)
         assertNull(response)
     }
+
+    @Test
+    @Throws(Exception::class)
+    fun testMultipleProxy() {
+        val echoService2 = EchoService_JsonRpcProxy(clientHandler)
+        val latch = CountDownLatch(2)
+        thread {
+            var response = echoService.echoString("World1")
+            assertEquals("World1Result", response)
+
+            response = echoService.echoString(null)
+            assertNull(response)
+            latch.countDown()
+        }
+        thread {
+            var response = echoService2.echoString("World2")
+            assertEquals("World2Result", response)
+
+            response = echoService2.echoString(null)
+            assertNull(response)
+            latch.countDown()
+        }
+
+        latch.await()
+    }
+
 
     @Test (expected = java.lang.RuntimeException::class)
     @Throws(Exception::class)
