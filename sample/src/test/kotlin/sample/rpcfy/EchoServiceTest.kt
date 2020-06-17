@@ -13,6 +13,7 @@ import java.io.IOException
 import java.util.*
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.TimeUnit
 import kotlin.collections.HashMap
 import kotlin.concurrent.thread
 
@@ -31,10 +32,13 @@ class JsonRPCfyTest {
     //**********************************************************************************
     //Simulating a server
     private lateinit var serverThread: Thread
+
     //Queue that server thread reads from
     private val serverQueue = LinkedBlockingQueue<String>()
+
     //Handler for server
     private lateinit var serverHandler: JsonRPCMessageHandler
+
     //server handler uses this to send message, which simply puts that in client queue.
     //In real application, this message will be sent across network/process to client side
     private val serverMessageSender = MessageSender<String> { message ->
@@ -49,10 +53,13 @@ class JsonRPCfyTest {
     //**********************************************************************************
     //Simulating a client
     private lateinit var clientThread: Thread
+
     //Queue that client thread reads from
     private val clientQueue = LinkedBlockingQueue<String>()
+
     //Handler for client
     private lateinit var clientHandler: JsonRPCMessageHandler
+
     //server handler uses this to send message, which simply puts that in server queue.
     //In real application, this message will be sent across network/process to server side
     private val clientMessageSender = MessageSender<String> { message ->
@@ -217,7 +224,7 @@ class JsonRPCfyTest {
     }
 
 
-    @Test (expected = java.lang.RuntimeException::class)
+    @Test(expected = java.lang.RuntimeException::class)
     @Throws(Exception::class)
     fun testDispatchIntercept() {
         var response = echoService.echoString("World")
@@ -452,6 +459,29 @@ class JsonRPCfyTest {
         fail("Expecting failure")
     }
 
+    @Test
+    fun testTimeoutOnClear() {
+        var timedOut = false
+        val startLatch = CountDownLatch(1)
+        val latch = CountDownLatch(1)
+        thread {
+            try {
+                startLatch.countDown()
+                echoService.callThatTimesout(60000)
+            } catch (exception: Exception) {
+                timedOut = true
+                latch.countDown()
+            }
+        }
+
+        startLatch.await()
+        Thread.sleep(100)
+        println("Clearing")
+        clientHandler.clear()
+        latch.await(10, TimeUnit.MILLISECONDS)
+        assertTrue(timedOut)
+    }
+
     @Test(expected = java.lang.RuntimeException::class)
     @Throws(Exception::class)
     fun testMessageFailture() {
@@ -549,7 +579,7 @@ class JsonRPCfyTest {
 
         clientHandler.addMethodDelegate(RPCMethodDelegate(EchoService::class.java, EchoService_JsonRpcProxy.METHOD_testDelegateIntercept_18,
                 object : EchoService by echoService {
-                    override fun testDelegateIntercept() : Int {
+                    override fun testDelegateIntercept(): Int {
                         throw RPCMethodDelegate.DelegateIgnoreException()
                     }
                 }))
@@ -573,7 +603,7 @@ class JsonRPCfyTest {
                 return 300
             }
         }
-        serverHandler.addMethodDelegate(RPCMethodDelegate(EchoService::class.java, EchoService_JsonRpcStub.METHOD_testDelegateIntercept_18,echoDelegate))
+        serverHandler.addMethodDelegate(RPCMethodDelegate(EchoService::class.java, EchoService_JsonRpcStub.METHOD_testDelegateIntercept_18, echoDelegate))
         assertEquals(300, echoService.testDelegateIntercept())
 
         val rpcDelegate = RPCMethodDelegate(EchoService::class.java, EchoService_JsonRpcStub.METHOD_testDelegateIntercept_18, null)
@@ -597,7 +627,7 @@ class JsonRPCfyTest {
         val callbackLatch1 = CountDownLatch(1)
 
         val echoString1 = "Hello"
-        var originalMessageInListenerCallBack:String? = null
+        var originalMessageInListenerCallBack: String? = null
 
         val listener0 = object : EchoServiceListener {
             private var listenerUnregistered: Boolean = false
@@ -659,14 +689,13 @@ class JsonRPCfyTest {
         val jsonify = GsonJsonify()
         //custom_xxx keys should come back
         assertNull(jsonify.fromJSON(originalMessageInListenerCallBack, "custom_string", String::class.java))
-        assertNull( jsonify.fromJSON(originalMessageInListenerCallBack, "custom_int", Int::class.java))
+        assertNull(jsonify.fromJSON(originalMessageInListenerCallBack, "custom_int", Int::class.java))
         assertNull(jsonify.fromJSON(originalMessageInListenerCallBack, "custom_obj", MyObj::class.java)?.age)
         //non custom should not be back (unless other end adds it back)
         assertNull(jsonify.fromJSON(originalMessageInListenerCallBack, "foo", String::class.java))
 
         echoService.unregisterListener(listener0)
         unregisterLatch0.await()
-
 
 
         val customExtras = mutableMapOf<String, String>()

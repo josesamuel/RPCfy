@@ -77,8 +77,8 @@ Gradle dependency
 
 ```groovy
 dependencies {
-    implementation 'com.josesamuel:rpcfy-annotations:1.0.17'
-    annotationProcessor 'com.josesamuel:rpcfy:1.0.17'
+    implementation 'com.josesamuel:rpcfy-annotations:1.0.18'
+    annotationProcessor 'com.josesamuel:rpcfy:1.0.18'
 }
 ```
 

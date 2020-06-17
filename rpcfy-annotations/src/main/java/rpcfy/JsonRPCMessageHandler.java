@@ -4,6 +4,7 @@ package rpcfy;
 import rpcfy.json.GsonJsonify;
 
 import java.lang.reflect.Constructor;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -260,9 +261,15 @@ public final class JsonRPCMessageHandler implements MessageReceiver<String> {
     }
 
     /**
-     * Clears all the stubs registered with this.
+     * Cancels all pending requests, and clears all the stubs registered with this.
      */
     public void clear() {
+        for (RPCCallId waitingCall : new ArrayList<>(waitingCallers.keySet())) {
+            synchronized (waitingCall) {
+                waitingCall.notifyAll();
+            }
+        }
+        waitingCallers.clear();
         stubMap.clear();
         stubInstanceMap.clear();
         requestExtras = null;
