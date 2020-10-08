@@ -61,6 +61,23 @@ public class GsonJsonify implements JSONify {
                 }
                 return null;
             }
+
+            @Override
+            public String getStringValue(String parameter) {
+                if (jsonObject == null) {
+                    JsonParser jsonParser = new JsonParser();
+                    JsonElement jsonElement = jsonParser.parse(toJson());
+                    if (jsonElement instanceof JsonObject) {
+                        jsonObject = (JsonObject) jsonElement;
+                    }
+                }
+
+                try {
+                    return jsonObject.get(parameter).getAsString();
+                } catch (Exception ex) {
+                    return getJsonValue(parameter);
+                }
+            }
         };
     }
 

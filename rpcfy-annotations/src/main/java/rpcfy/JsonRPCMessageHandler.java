@@ -18,6 +18,8 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public final class JsonRPCMessageHandler implements MessageReceiver<String> {
 
+    private static final String PREFIX_RELAY_PROPERTY = "custom_";
+
     private final long REQUEST_TIMEOUT = 120000;
     private MessageSender<String> sender;
     private final Map<String, Map<Integer, RPCStub>> stubMap = new ConcurrentHashMap<>();
@@ -29,6 +31,8 @@ public final class JsonRPCMessageHandler implements MessageReceiver<String> {
     private Map<String, String> requestExtras;
     private Map<RPCMethodDelegate, Object> delegates = new HashMap<>();
     private Map<RPCMethodDelegate, String> rpcMessage = new HashMap<>();
+    private ThreadLocal<Map<String,String>> rpcParameters = new ThreadLocal<>();
+
 
     /**
      * Creates an instance of {@link JsonRPCMessageHandler}.
@@ -58,7 +62,54 @@ public final class JsonRPCMessageHandler implements MessageReceiver<String> {
      * Any key starting with custom_ will also be relayed back in the response
      */
     public void setExtra(Map<String, String> requestExtras) {
-        this.requestExtras = requestExtras;
+        if (this.requestExtras != null && requestExtras != null) {
+            this.requestExtras.putAll(requestExtras);
+        } else {
+            this.requestExtras = requestExtras;
+        }
+    }
+
+    /**
+     * Add a key value property to be sent with all the request.
+     *
+     * @param key   The key of the property
+     * @param value The value of the property
+     * @param relay Whether the property should be relayed back with the response
+     */
+    public void addProperty(String key, String value, boolean relay) {
+        if (requestExtras == null) {
+            requestExtras = new HashMap<>();
+        }
+        if (relay && !key.startsWith(PREFIX_RELAY_PROPERTY)) {
+            key = PREFIX_RELAY_PROPERTY + key;
+        }
+        requestExtras.put(key, value);
+    }
+
+    /**
+     * Returns any property that was send as part of the current rpc call within this thread if any.
+     */
+    public String getProperty(String key) {
+        Map<String, String> params = rpcParameters.get();
+        String value = null;
+        if (params != null) {
+            value = params.get(key);
+            if (value == null && !key.startsWith(PREFIX_RELAY_PROPERTY)){
+                value = params.get(PREFIX_RELAY_PROPERTY + key);
+            }
+        }
+        return value;
+    }
+
+    /**
+     * Called internally.
+     */
+    public final void onRPCParameters(Map<String, String> params) {
+        if (params == null) {
+            rpcParameters.remove();
+        } else {
+            rpcParameters.set(params);
+        }
     }
 
     /**

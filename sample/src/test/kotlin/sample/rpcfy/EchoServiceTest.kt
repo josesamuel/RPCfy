@@ -79,6 +79,8 @@ class JsonRPCfyTest {
     private val DEBUG = true
     private var throwExceptionFromDispatch = false
 
+    private var messageInterceptor: (() -> Unit)? = null
+
 
     @Before
     fun setup() {
@@ -103,6 +105,7 @@ class JsonRPCfyTest {
                 if (throwExceptionFromDispatch && methodDelegate.methodId == EchoService_JsonRpcStub.METHOD_echoString_3) {
                     throw java.lang.IllegalStateException("Call not allowed")
                 }
+                messageInterceptor?.invoke()
             }
         })
         serverThread = object : Thread() {
@@ -142,6 +145,7 @@ class JsonRPCfyTest {
         clientThread.start()
         clientHandler.setLogEnabled(DEBUG)
         serverHandler.setLogEnabled(DEBUG)
+        messageInterceptor = null
     }
 
     @After
@@ -755,6 +759,36 @@ class JsonRPCfyTest {
         assertEquals(1, jsonify.fromJSON(simulateCustomJsonEntriesReturnedMessage, "custom_obj", MyObj::class.java).age)
         //non custom should not be back (unless other end adds it back)
         assertNull(jsonify.fromJSON(simulateCustomJsonEntriesReturnedMessage, "foo", String::class.java))
+    }
+
+
+    @Test
+    @Throws(Exception::class)
+    fun testProperties() {
+        simulateCustomJsonEntries = true
+        messageInterceptor = {
+            println("Intercepting message ")
+            assertEquals("B1", serverHandler.getProperty("B"));
+            assertEquals("A1", serverHandler.getProperty("A"));
+            assertEquals("B1", serverHandler.getProperty("custom_B"));
+            println("Got all properties")
+        }
+
+        clientHandler.addProperty("A", "A1", false);
+        clientHandler.addProperty("B", "B1", true);
+
+        echoService.echoString("World")
+        assertNotNull(simulateCustomJsonEntriesReturnedMessage)
+        val jsonify = GsonJsonify()
+        //custom_xxx keys should come back
+        assertEquals("B1", jsonify.fromJSON(simulateCustomJsonEntriesReturnedMessage, "custom_B", String::class.java))
+        assertNull(jsonify.fromJSON(simulateCustomJsonEntriesReturnedMessage, "custom_A", String::class.java))
+        assertNull(jsonify.fromJSON(simulateCustomJsonEntriesReturnedMessage, "A", String::class.java))
+
+        assertNull(serverHandler.getProperty("B"));
+        assertNull(serverHandler.getProperty("A"));
+        assertNull(serverHandler.getProperty("custom_B"));
+
     }
 
 

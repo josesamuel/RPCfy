@@ -257,19 +257,22 @@ class MethodBuilder extends RpcfyBuilder {
         methodBuilder.endControlFlow();
         //add custom entries back
 
-        methodBuilder.beginControlFlow("if (message.contains(\"custom_\"))");
-        methodBuilder.addStatement("customExtras = new $T<>()", HashMap.class);
         methodBuilder.addStatement("$T requestElement = jsonify.fromJson(message)", JSONify.JElement.class);
         methodBuilder.addStatement("$T<String> requestParams = requestElement.getKeys()", Set.class);
         methodBuilder.beginControlFlow("if (requestParams != null)");
+        methodBuilder.addStatement("Map<String, String> _allParams = new $T<>()", HashMap.class);
         methodBuilder.beginControlFlow("for (String key : requestElement.getKeys())");
+        methodBuilder.addStatement("String _custom_value = requestElement.getStringValue(key)");
+        methodBuilder.addStatement("_allParams.put(key, _custom_value)");
         methodBuilder.beginControlFlow("if (key.startsWith(\"custom_\"))");
-        methodBuilder.addStatement("String _custom_value = requestElement.getJsonValue(key)");
+        methodBuilder.beginControlFlow("if (customExtras == null)");
+        methodBuilder.addStatement("customExtras = new $T<>()", HashMap.class);
+        methodBuilder.endControlFlow();
         methodBuilder.addStatement("jsonRPCObject.putJson(key, _custom_value)");
         methodBuilder.addStatement("customExtras.put(key, _custom_value)");
         methodBuilder.endControlFlow();
         methodBuilder.endControlFlow();
-        methodBuilder.endControlFlow();
+        methodBuilder.addStatement("rpcHandler.onRPCParameters(_allParams)");
         methodBuilder.endControlFlow();
 
 
@@ -301,7 +304,7 @@ class MethodBuilder extends RpcfyBuilder {
         methodBuilder.addStatement("rpcHandler.setOriginalMessage(rpc_method_delegate, null)");
         methodBuilder.endControlFlow();
 
-
+        methodBuilder.addStatement("rpcHandler.onRPCParameters(null)");
         methodBuilder.addStatement("return jsonRPCObject.toJson()");
 
         classBuilder.addMethod(methodBuilder.build());

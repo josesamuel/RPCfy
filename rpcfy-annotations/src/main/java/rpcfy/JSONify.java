@@ -68,6 +68,11 @@ public interface JSONify {
          */
         String getJsonValue(String parameter);
 
+        /**
+         * Returns the value of parameter in json in this element if any
+         */
+        String getStringValue(String parameter);
+
     }
 
 

@@ -54,6 +54,16 @@ public class GsonObject implements JSONify.JObject {
     }
 
     @Override
+    public String getStringValue(String parameter) {
+        try {
+            return jsonObject.get(parameter).getAsString();
+        } catch (Exception ex) {
+            return getJsonValue(parameter);
+        }
+    }
+
+
+    @Override
     public void putJson(String name, String value) {
         jsonObject.add(name, jsonParser.parse(value));
     }
