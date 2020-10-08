@@ -221,8 +221,7 @@ public final class JsonRPCMessageHandler implements MessageReceiver<String> {
         } catch (Exception ex) {
             loge(ex);
         }
-
-
+        rpcParameters.remove();
     }
 
     /**

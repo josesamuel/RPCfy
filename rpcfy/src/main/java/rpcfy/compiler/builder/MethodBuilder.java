@@ -304,7 +304,6 @@ class MethodBuilder extends RpcfyBuilder {
         methodBuilder.addStatement("rpcHandler.setOriginalMessage(rpc_method_delegate, null)");
         methodBuilder.endControlFlow();
 
-        methodBuilder.addStatement("rpcHandler.onRPCParameters(null)");
         methodBuilder.addStatement("return jsonRPCObject.toJson()");
 
         classBuilder.addMethod(methodBuilder.build());
