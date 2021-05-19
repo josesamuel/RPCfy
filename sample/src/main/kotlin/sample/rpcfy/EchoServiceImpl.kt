@@ -134,5 +134,12 @@ open class EchoServiceImpl : EchoService {
 
     override fun testDelegateIntercept() = 100
 
+    override fun oneWayThrowingException() {
+        throw IllegalStateException("Illegal state")
+    }
+
+    override fun oneWayTimeout() {
+        Thread.sleep(5000)
+    }
 
 }

@@ -54,4 +54,8 @@ interface EchoService {
 
     fun testDelegateIntercept():Int
 
+    fun oneWayThrowingException()
+
+    fun oneWayTimeout()
+
 }

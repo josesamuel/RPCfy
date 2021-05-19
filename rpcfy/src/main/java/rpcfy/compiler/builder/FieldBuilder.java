@@ -17,6 +17,7 @@ import javax.lang.model.element.Modifier;
 
 import rpcfy.JSONify;
 import rpcfy.JsonRPCMessageHandler;
+import rpcfy.RPCProxy;
 import rpcfy.RPCStub;
 
 
@@ -44,6 +45,8 @@ class FieldBuilder extends RpcfyBuilder {
                 .addModifiers(Modifier.PRIVATE).build());
 
         classBuilder.addField(FieldSpec.builder(ParameterizedTypeName.get(Map.class, String.class, String.class), "customExtras")
+                .addModifiers(Modifier.PRIVATE).build());
+        classBuilder.addField(FieldSpec.builder(RPCProxy.RemoteListener.class, "remoteListener")
                 .addModifiers(Modifier.PRIVATE).build());
 
 

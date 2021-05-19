@@ -2,10 +2,7 @@ package rpcfy.compiler.builder;
 
 import com.google.gson.reflect.TypeToken;
 import com.squareup.javapoet.*;
-import rpcfy.JSONify;
-import rpcfy.RPCMethodDelegate;
-import rpcfy.RPCNotSupportedException;
-import rpcfy.RPCStub;
+import rpcfy.*;
 import rpcfy.annotations.RPCfyNotSupported;
 
 import javax.annotation.processing.Messager;
@@ -174,7 +171,7 @@ class MethodBuilder extends RpcfyBuilder {
 
 
         if (isOneWay) {
-            methodBuilder.addStatement("rpcHandler.sendMessage(jsonRPCObject.toJson())");
+            methodBuilder.addStatement("rpcHandler.sendMessage(jsonRPCObject.toJson(), interfaceName, methodID, rpcCallId, proxyInstanceId, this)");
         } else {
             methodBuilder.addStatement("String result");
             methodBuilder.addStatement("result = rpcHandler.sendMessageAndWaitForResponse(jsonRPCObject.toJson(), interfaceName, methodID, rpcCallId, proxyInstanceId)");
@@ -472,6 +469,37 @@ class MethodBuilder extends RpcfyBuilder {
                 .addAnnotation(Override.class)
                 .addParameter(ParameterizedTypeName.get(Map.class, String.class, String.class), "customExtras")
                 .addStatement("this.customExtras = customExtras");
+        classBuilder.addMethod(methodBuilder.build());
+
+        methodBuilder = MethodSpec.methodBuilder("setRPCRemoteListener")
+                .addModifiers(Modifier.PUBLIC)
+                .returns(void.class)
+                .addAnnotation(Override.class)
+                .addParameter(RPCProxy.RemoteListener.class, "remoteListener")
+                .addStatement("this.remoteListener = remoteListener");
+        classBuilder.addMethod(methodBuilder.build());
+
+        methodBuilder = MethodSpec.methodBuilder("onRPCOneWayResult")
+                .addModifiers(Modifier.PUBLIC)
+                .returns(void.class)
+                .addAnnotation(Override.class)
+                .addParameter(String.class, "result")
+                .beginControlFlow("if (remoteListener != null)")
+                .addStatement("String exception = jsonify.getJSONElement(result, \"error\")")
+                .beginControlFlow("if (exception != null)")
+                .addStatement("int code = jsonify.fromJSON(exception, \"code\", int.class)")
+                .addStatement("String exceptionMessage = \"Remote Exception\"")
+                .beginControlFlow("if (code == -32001)")
+                .addStatement("exceptionMessage = \"Remote stub not found\"")
+                .endControlFlow()
+                .beginControlFlow("else")
+                .addStatement("String exceptionClassName = jsonify.fromJSON(exception, \"exception\", String.class)")
+                .addStatement("exceptionMessage = exceptionClassName + \" \" +jsonify.fromJSON(exception, \"message\", String.class)")
+                .endControlFlow()
+                .addStatement("int methodID = jsonify.fromJSON(result, \"method_id\", int.class)")
+                .addStatement("remoteListener.onRPCFailed(this, methodID, new $T(code == -32000 ? RPCException.Type.REMOTE_EXCEPTION : RPCException.Type.REMOTE_STUB_NOT_FOUND, exceptionMessage))", RPCException.class)
+                .endControlFlow()
+                .endControlFlow();
         classBuilder.addMethod(methodBuilder.build());
     }
 

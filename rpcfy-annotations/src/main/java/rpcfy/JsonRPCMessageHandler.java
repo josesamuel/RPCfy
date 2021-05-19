@@ -28,6 +28,7 @@ public final class JsonRPCMessageHandler implements MessageReceiver<String> {
     private JSONify jsoNify = new GsonJsonify();
     private boolean logEnabled;
     private long requestTimeout = REQUEST_TIMEOUT;
+    private long oneWayRequestTimeout = REQUEST_TIMEOUT;
     private Map<String, String> requestExtras;
     private Map<RPCMethodDelegate, Object> delegates = new HashMap<>();
     private Map<RPCMethodDelegate, String> rpcMessage = new HashMap<>();
@@ -185,6 +186,20 @@ public final class JsonRPCMessageHandler implements MessageReceiver<String> {
                     sendMessage(stub.onRPCCall(methodId, message));
                 } else {
                     loge("No Matching Stub found to serve the request " + message + " " + stubMap);
+
+                    JSONify.JObject jsonRPCObject = jsoNify.newJson();
+                    jsonRPCObject.put("jsonrpc", "2.0");
+                    jsonRPCObject.put("interface", jsoNify.fromJSON(message, "interface", String.class));
+                    jsonRPCObject.put("method_id", jsoNify.fromJSON(message, "method_id", int.class));
+                    jsonRPCObject.put("id", jsoNify.fromJSON(message, "id", int.class));
+                    if (jsoNify.getJSONElement(message, "ins_id") != null) {
+                        jsonRPCObject.put("ins_id", jsoNify.fromJSON(message, "ins_id", int.class));
+                    }
+                    JSONify.JObject jsonErrorObject = jsoNify.newJson();
+                    jsonErrorObject.put("code", -32001);
+                    jsonRPCObject.put("error", jsonErrorObject);
+
+                    sendMessage(jsonRPCObject.toJson());
                 }
             } else {
                 //result call
@@ -210,6 +225,10 @@ public final class JsonRPCMessageHandler implements MessageReceiver<String> {
                     synchronized (waitingReq) {
                         waitingReq.result = message;
                         waitingReq.notifyAll();
+                        if (waitingReq.proxyInstance != null) {
+                            waitingReq.proxyInstance.onRPCOneWayResult(message);
+                            waitingCallers.remove(waitingReq);
+                        }
                     }
                 } else {
                     String result = jsoNify.fromJSON(message, "result", String.class);
@@ -234,6 +253,46 @@ public final class JsonRPCMessageHandler implements MessageReceiver<String> {
         } catch (Exception ex) {
             loge(ex);
             throw new RuntimeException(ex);
+        }
+    }
+
+    /**
+     * Used internally by generated Proxy/Stub to send the message using the {@link MessageSender} associated with this
+     */
+    public void sendMessage(String message, String interfaceName, int methodID, int rpcID, int proxyInstanceId, RPCProxy proxy) {
+        clearTimedOutOneWayRequests();
+        final RPCCallId rpcCallId = new RPCCallId(interfaceName, methodID, rpcID, proxyInstanceId);
+        rpcCallId.proxyInstance = proxy;
+        rpcCallId.requestTimeOut = oneWayRequestTimeout;
+        logv("Sending " + message + " , " + rpcCallId);
+        try {
+            waitingCallers.put(rpcCallId, rpcCallId);
+            sender.sendMessage(message);
+        } catch (Exception ex) {
+            loge(ex);
+            throw new RuntimeException(ex);
+        }
+    }
+
+    /**
+     * Clear out any pending timedout one way requests
+     */
+    private void clearTimedOutOneWayRequests () {
+        for (RPCCallId req : waitingCallers.keySet()) {
+            if (req.proxyInstance != null && req.hasTimedOut()) {
+                waitingCallers.remove(req);
+                loge("One way call timed out for  " + req);
+                JSONify.JObject jsonRPCObject = jsoNify.newJson();
+                jsonRPCObject.put("jsonrpc", "2.0");
+                jsonRPCObject.put("interface", req.interfaceName);
+                jsonRPCObject.put("method_id", req.methodId);
+                jsonRPCObject.put("id", req.callId);
+                jsonRPCObject.put("ins_id", req.instanceId);
+                JSONify.JObject jsonErrorObject = jsoNify.newJson();
+                jsonErrorObject.put("code", -32001);
+                jsonRPCObject.put("error", jsonErrorObject);
+                req.proxyInstance.onRPCOneWayResult(jsonRPCObject.toJson());
+            }
         }
     }
 
@@ -365,6 +424,16 @@ public final class JsonRPCMessageHandler implements MessageReceiver<String> {
     }
 
     /**
+     * Sets the request timeout for non blocking requests.
+     * Default timeout is 2 minutes.
+     * The listener will only be triggered on any next one way call.
+     * @see RPCProxy#setRPCRemoteListener(RPCProxy.RemoteListener)
+     */
+    public void setOneWayRequestTimeout(long requestTimeout) {
+        this.oneWayRequestTimeout = requestTimeout;
+    }
+
+    /**
      * Internal use to convert exception
      */
     public static <T> T asException(String exceptionName, String exceptionMessage, Class<T> exception) {
@@ -409,6 +478,9 @@ public final class JsonRPCMessageHandler implements MessageReceiver<String> {
         private int instanceId;
         private boolean compareInstanceId;
         private String result;
+        private RPCProxy proxyInstance;
+        private long requestTime = System.currentTimeMillis();
+        private long requestTimeOut = 60000;
 
         RPCCallId(String interfaceName, int methodId, int callId) {
             this.interfaceName = interfaceName;
@@ -437,6 +509,10 @@ public final class JsonRPCMessageHandler implements MessageReceiver<String> {
                         && (!compareInstanceId || !other.compareInstanceId || (instanceId == other.instanceId));
             }
             return false;
+        }
+
+        public boolean hasTimedOut() {
+            return (System.currentTimeMillis() - requestTime) >= requestTimeOut;
         }
 
         @Override

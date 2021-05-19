@@ -4,10 +4,7 @@ import junit.framework.Assert.*
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
-import rpcfy.JsonRPCMessageHandler
-import rpcfy.MessageSender
-import rpcfy.RPCMethodDelegate
-import rpcfy.RPCNotSupportedException
+import rpcfy.*
 import rpcfy.json.GsonJsonify
 import java.io.IOException
 import java.util.*
@@ -16,6 +13,7 @@ import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 import kotlin.collections.HashMap
 import kotlin.concurrent.thread
+import rpcfy.RPCProxy.RemoteListener
 
 
 /**
@@ -342,6 +340,63 @@ class JsonRPCfyTest {
 
         echoService.echoString(echoString1)
         Thread.sleep(50)
+    }
+
+    @Test
+    fun testStubNotFound() {
+        val stubNotFoundLatch = CountDownLatch(1)
+        var gotErrorCallBack = false
+        serverHandler.clear()
+        (echoService as RPCProxy).setRPCRemoteListener(object : RemoteListener {
+            override fun onRPCFailed(proxy: RPCProxy, methodID: Int, exception: RPCException) {
+                println("onRPCFailed $methodID ${exception.message} ${exception.type}")
+                gotErrorCallBack = true
+                assertEquals(echoService, proxy)
+                stubNotFoundLatch.countDown()
+            }
+        })
+
+        echoService.noArgumentMethod()
+        stubNotFoundLatch.await()
+        assertTrue(gotErrorCallBack)
+    }
+
+    @Test
+    fun testOnewayException() {
+        val stubNotFoundLatch = CountDownLatch(1)
+        var gotErrorCallBack = false
+        (echoService as RPCProxy).setRPCRemoteListener(object : RemoteListener {
+            override fun onRPCFailed(proxy: RPCProxy, methodID: Int, exception: RPCException) {
+                println("onRPCFailed $methodID ${exception.message} ${exception.type}")
+                gotErrorCallBack = true
+                assertEquals(echoService, proxy)
+                stubNotFoundLatch.countDown()
+            }
+        })
+
+        echoService.oneWayThrowingException()
+        stubNotFoundLatch.await()
+        assertTrue(gotErrorCallBack)
+    }
+
+    @Test
+    fun testOnewayTimeout() {
+        val stubNotFoundLatch = CountDownLatch(1)
+        var gotErrorCallBack = false
+        (echoService as RPCProxy).setRPCRemoteListener(object : RemoteListener {
+            override fun onRPCFailed(proxy: RPCProxy, methodID: Int, exception: RPCException) {
+                println("onRPCFailed $methodID ${exception.message} ${exception.type}")
+                gotErrorCallBack = true
+                assertEquals(echoService, proxy)
+                stubNotFoundLatch.countDown()
+            }
+        })
+        clientHandler.setOneWayRequestTimeout(10)
+        echoService.oneWayTimeout()
+        stubNotFoundLatch.await(15, TimeUnit.MILLISECONDS)
+        echoService.noArgumentMethod()
+        stubNotFoundLatch.await(5, TimeUnit.MILLISECONDS)
+        assertTrue(gotErrorCallBack)
     }
 
 
