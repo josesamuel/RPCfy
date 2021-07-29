@@ -12,6 +12,7 @@ import java.util.*
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.collections.HashMap
 import kotlin.concurrent.thread
 
@@ -229,6 +230,7 @@ class JsonRPCfyTest {
     }
 
 
+
     @Test
     @Throws(Exception::class)
     fun testNoArgCall() {
@@ -271,6 +273,103 @@ class JsonRPCfyTest {
 
         response = echoService.echoString(null)
         assertNull(response)
+    }
+
+    @Test
+    @Throws(Exception::class)
+    fun testMultipleListenersWhenOneDead() {
+
+        val totalEchoResponse = AtomicInteger()
+        var stubRemoved = false
+        val listener1 = object : EchoServiceListener {
+            override fun onEcho(input: String?) {
+                println("onEcho in listener 1 $input")
+                totalEchoResponse.incrementAndGet()
+                if (stubRemoved) {
+                    fail("Stub should have been removed")
+                }
+            }
+        }
+
+        val listener2 = object : EchoServiceListener {
+            override fun onEcho(input: String?) {
+                println("onEcho in listener 2 $input")
+                totalEchoResponse.incrementAndGet()
+            }
+        }
+
+        echoService.registerListener(listener1)
+        echoService.registerListener(listener2)
+
+        echoService.echoString("Hello")
+
+        Thread.sleep(200)
+
+        clientHandler.clearStubOfService(listener1)
+        stubRemoved = true
+
+        println("stub removed")
+
+        echoService.echoString("Hello")
+
+        Thread.sleep(200)
+
+        assertEquals(3, totalEchoResponse.get())
+    }
+
+
+    @Test
+    @Throws(Exception::class)
+    fun testMultipleListenersOnMultipleHandlers() {
+
+        val totalEchoResponse = AtomicInteger()
+        var stubRemoved = false
+        val listener1 = object : EchoServiceListener {
+            override fun onEcho(input: String?) {
+                println("onEcho in listener 1 $input")
+                totalEchoResponse.incrementAndGet()
+                if (stubRemoved) {
+                    fail("Stub should have been removed")
+                }
+            }
+        }
+
+        clientHandler2 = JsonRPCMessageHandler { message ->
+            println(" 2 > " + clientHandler2?.getMessageEntries(message))
+            try {
+                serverQueue.put(message)
+            } catch (e: Exception) {
+            }
+        }
+
+        val echoService2 = EchoService_JsonRpcProxy(clientHandler2)
+
+        println("Echo2 Proxy $echoService2")
+
+        val listener2 = object : EchoServiceListener {
+            override fun onEcho(input: String?) {
+                println("onEcho in listener 2 $input")
+                totalEchoResponse.incrementAndGet()
+            }
+        }
+
+        echoService.registerListener(listener1)
+        echoService2.registerListener(listener2)
+
+        echoService.echoString("Hello")
+
+        Thread.sleep(200)
+
+        clientHandler.clearStubOfService(listener1)
+        stubRemoved = true
+
+        println("stub removed")
+
+        echoService.echoString("Hello")
+
+        Thread.sleep(200)
+
+        assertEquals(3, totalEchoResponse.get())
     }
 
     @Test

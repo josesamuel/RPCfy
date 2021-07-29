@@ -51,8 +51,8 @@ open class EchoServiceImpl : EchoService {
     }
 
     override fun echoString(input: String?): String? {
-        if (listeners.size >= 1) {
-            listeners[0].onEcho(input)
+        listeners.forEach {
+            it.onEcho(input)
         }
         return if (input != null) input + "Result" else null
     }
@@ -61,8 +61,8 @@ open class EchoServiceImpl : EchoService {
         println("echoObject $input")
         if (input != null) {
             println("echoObject " + input.name)
-            if (listeners.size >= 2) {
-                listeners[1].onEcho(input.name)
+            listeners.forEach {
+                it.onEcho(input.name)
             }
         }
         return input

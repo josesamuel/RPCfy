@@ -393,6 +393,13 @@ public final class JsonRPCMessageHandler implements MessageReceiver<String> {
         }
     }
 
+    public void clearStubOfService(Object serviceInstance) {
+        RPCStub stub = stubInstanceMap.remove(serviceInstance);
+        if (stub != null) {
+            clearStub(stub);
+        }
+    }
+
     /**
      * Cancels all pending requests, and clears all the stubs registered with this.
      */
