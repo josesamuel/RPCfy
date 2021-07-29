@@ -115,6 +115,10 @@ class MethodBuilder extends RpcfyBuilder {
         methodBuilder.addStatement("jsonRPCObject.put(\"interface\", interfaceName )");
         methodBuilder.addStatement("jsonRPCObject.put(\"method_id\", methodID)");
         methodBuilder.addStatement("jsonRPCObject.put(\"ins_id\", proxyInstanceId)");
+        methodBuilder.addStatement("jsonRPCObject.put(\"handler_id\", rpcHandler.hashCode())");
+        methodBuilder.beginControlFlow("if (remoteHandlerID != null)");
+        methodBuilder.addStatement("jsonRPCObject.put(\"r_handler_id\", remoteHandlerID)");
+        methodBuilder.endControlFlow();
         methodBuilder.beginControlFlow("if (remoteID != null)");
         methodBuilder.addStatement("jsonRPCObject.put(\"remote_id\", remoteID)");
         methodBuilder.endControlFlow();
@@ -206,7 +210,14 @@ class MethodBuilder extends RpcfyBuilder {
                     methodBuilder.addStatement("int return_id = jsonify.fromJSON(resultJson, int.class)");
 
                     ClassName returnProxyCName = ClassName.bestGuess(executableElement.getReturnType().toString() + ClassBuilder.PROXY_SUFFIX);
-                    methodBuilder.addStatement("return new $T(rpcHandler, jsonify, return_id)", returnProxyCName);
+
+                    methodBuilder.addStatement("$T _remoteHandlerResultId = null", Integer.class);
+                    methodBuilder.beginControlFlow("if (jsonify.getJSONElement(result, \"handler_id\") != null)");
+                    methodBuilder.addStatement("_remoteHandlerResultId = jsonify.fromJSON(result, \"handler_id\", int.class)");
+                    methodBuilder.endControlFlow();
+
+
+                    methodBuilder.addStatement("return new $T(rpcHandler, jsonify, return_id, _remoteHandlerResultId)", returnProxyCName);
 
                     methodBuilder.endControlFlow();
                     methodBuilder.beginControlFlow("else");
@@ -252,6 +263,13 @@ class MethodBuilder extends RpcfyBuilder {
         methodBuilder.beginControlFlow("if (jsonify.getJSONElement(message, \"ins_id\") != null)");
         methodBuilder.addStatement("jsonRPCObject.put(\"ins_id\", jsonify.fromJSON(message, \"ins_id\", int.class))");
         methodBuilder.endControlFlow();
+
+        methodBuilder.addStatement("$T _remoteHandlerId = null", Integer.class);
+        methodBuilder.beginControlFlow("if (jsonify.getJSONElement(message, \"handler_id\") != null)");
+        methodBuilder.addStatement("_remoteHandlerId = jsonify.fromJSON(message, \"handler_id\", int.class)");
+        methodBuilder.addStatement("jsonRPCObject.put(\"r_handler_id\", jsonify.fromJSON(message, \"handler_id\", int.class))");
+        methodBuilder.endControlFlow();
+        methodBuilder.addStatement("jsonRPCObject.put(\"handler_id\", rpcHandler.hashCode())");
         //add custom entries back
 
         methodBuilder.addStatement("$T requestElement = jsonify.fromJson(message)", JSONify.JElement.class);
@@ -336,7 +354,7 @@ class MethodBuilder extends RpcfyBuilder {
                 methodBuilder.addStatement("String " + paramName + "_id_json = jsonify.getJSONElement(paramsElement, \"" + param.getSimpleName() + "\")");
                 methodBuilder.beginControlFlow("if (" + paramName + "_id_json != null)");
                 methodBuilder.addStatement("int " + paramName + "_id = jsonify.fromJSON(paramsElement, \"" + param.getSimpleName() + "\", int.class)");
-                methodBuilder.addStatement(paramName + " = new $T(rpcHandler, jsonify, " + paramName + "_id)", proxy);
+                methodBuilder.addStatement(paramName + " = new $T(rpcHandler, jsonify, " + paramName + "_id, _remoteHandlerId)", proxy);
                 methodBuilder.addStatement(paramName + ".setRPCfyCustomExtras(customExtras)");
                 methodBuilder.endControlFlow();
             } else {
@@ -448,6 +466,15 @@ class MethodBuilder extends RpcfyBuilder {
 
         classBuilder.addMethod(methodBuilder.build());
 
+
+        methodBuilder = MethodSpec.methodBuilder("toString")
+                .addModifiers(Modifier.PUBLIC)
+                .addAnnotation(Override.class)
+                .returns(String.class)
+                .addStatement("return \""+ getRemoterInterfaceClassName() +"_RpcStub [\" + remoteID + \":\" + rpcHandler.hashCode() + ']'");
+
+        classBuilder.addMethod(methodBuilder.build());
+
     }
 
     /**
@@ -500,6 +527,15 @@ class MethodBuilder extends RpcfyBuilder {
                 .addStatement("remoteListener.onRPCFailed(this, methodID, new $T(code == -32000 ? RPCException.Type.REMOTE_EXCEPTION : RPCException.Type.REMOTE_STUB_NOT_FOUND, exceptionMessage))", RPCException.class)
                 .endControlFlow()
                 .endControlFlow();
+        classBuilder.addMethod(methodBuilder.build());
+
+
+        methodBuilder = MethodSpec.methodBuilder("toString")
+                .addModifiers(Modifier.PUBLIC)
+                .addAnnotation(Override.class)
+                .returns(String.class)
+                .addStatement("return \""+ getRemoterInterfaceClassName() +"_RpcProxy [\" + super.hashCode() + \":\" + remoteHandlerID + \":\" + remoteID + ']'");
+
         classBuilder.addMethod(methodBuilder.build());
     }
 

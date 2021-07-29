@@ -43,6 +43,8 @@ class FieldBuilder extends RpcfyBuilder {
                 .build());
         classBuilder.addField(FieldSpec.builder(Integer.class, "remoteID")
                 .addModifiers(Modifier.PRIVATE).build());
+        classBuilder.addField(FieldSpec.builder(Integer.class, "remoteHandlerID")
+                .addModifiers(Modifier.PRIVATE).build());
 
         classBuilder.addField(FieldSpec.builder(ParameterizedTypeName.get(Map.class, String.class, String.class), "customExtras")
                 .addModifiers(Modifier.PRIVATE).build());

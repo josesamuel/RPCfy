@@ -6,6 +6,7 @@ import rpcfy.json.GsonJsonify;
 import java.lang.reflect.Constructor;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -161,81 +162,87 @@ public final class JsonRPCMessageHandler implements MessageReceiver<String> {
             logv("onMessage " + message);
             String stubInterface = jsoNify.fromJSON(message, "interface", String.class);
             String methodName = jsoNify.fromJSON(message, "method", String.class);
+            Integer handlerId = jsoNify.fromJSON(message, "r_handler_id", int.class);
+            boolean processMessage = (handlerId == null) || (hashCode() == handlerId);
 
-            if (methodName != null) {
-                RPCStub stub = null;
-                Map<Integer, RPCStub> stubs = null;
+            if (processMessage) {
+                if (methodName != null) {
+                    RPCStub stub = null;
+                    Map<Integer, RPCStub> stubs = null;
 
-                if (stubInterface != null) {
-                    stubs = stubMap.get(stubInterface);
+                    if (stubInterface != null) {
+                        stubs = stubMap.get(stubInterface);
 
-                    if (stubs != null) {
-                        Integer stubId = jsoNify.fromJSON(message, "remote_id", int.class);
-                        if (stubId == null) {
-                            if (!stubs.isEmpty()) {
-                                stub = stubs.values().iterator().next();
+                        if (stubs != null) {
+                            Integer stubId = jsoNify.fromJSON(message, "remote_id", int.class);
+                            if (stubId == null) {
+                                if (!stubs.isEmpty()) {
+                                    stub = stubs.values().iterator().next();
+                                }
+                            } else {
+                                stub = stubs.get(stubId);
                             }
-                        } else {
-                            stub = stubs.get(stubId);
                         }
                     }
-                }
 
-                if (stub != null) {
-                    int methodId = jsoNify.fromJSON(message, "method_id", int.class);
-                    sendMessage(stub.onRPCCall(methodId, message));
-                } else {
-                    loge("No Matching Stub found to serve the request " + message + " " + stubMap);
+                    if (stub != null) {
+                        int methodId = jsoNify.fromJSON(message, "method_id", int.class);
+                        sendMessage(stub.onRPCCall(methodId, message));
+                    } else {
+                        loge("No Matching Stub found to serve the request " + message + " " + stubMap);
 
-                    JSONify.JObject jsonRPCObject = jsoNify.newJson();
-                    jsonRPCObject.put("jsonrpc", "2.0");
-                    jsonRPCObject.put("interface", jsoNify.fromJSON(message, "interface", String.class));
-                    jsonRPCObject.put("method_id", jsoNify.fromJSON(message, "method_id", int.class));
-                    jsonRPCObject.put("id", jsoNify.fromJSON(message, "id", int.class));
-                    if (jsoNify.getJSONElement(message, "ins_id") != null) {
-                        jsonRPCObject.put("ins_id", jsoNify.fromJSON(message, "ins_id", int.class));
+                        JSONify.JObject jsonRPCObject = jsoNify.newJson();
+                        jsonRPCObject.put("jsonrpc", "2.0");
+                        jsonRPCObject.put("interface", jsoNify.fromJSON(message, "interface", String.class));
+                        jsonRPCObject.put("method_id", jsoNify.fromJSON(message, "method_id", int.class));
+                        jsonRPCObject.put("id", jsoNify.fromJSON(message, "id", int.class));
+                        if (jsoNify.getJSONElement(message, "ins_id") != null) {
+                            jsonRPCObject.put("ins_id", jsoNify.fromJSON(message, "ins_id", int.class));
+                        }
+                        JSONify.JObject jsonErrorObject = jsoNify.newJson();
+                        jsonErrorObject.put("code", -32001);
+                        jsonRPCObject.put("error", jsonErrorObject);
+
+                        sendMessage(jsonRPCObject.toJson());
                     }
-                    JSONify.JObject jsonErrorObject = jsoNify.newJson();
-                    jsonErrorObject.put("code", -32001);
-                    jsonRPCObject.put("error", jsonErrorObject);
-
-                    sendMessage(jsonRPCObject.toJson());
+                } else {
+                    //result call
+                    int methodId = jsoNify.fromJSON(message, "method_id", int.class);
+                    int callId = jsoNify.fromJSON(message, "id", int.class);
+                    RPCCallId rpcCallId;
+                    if (jsoNify.getJSONElement(message, "ins_id") != null) {
+                        int instanceId = jsoNify.fromJSON(message, "ins_id", int.class);
+                        rpcCallId = new RPCCallId(stubInterface, methodId, callId, instanceId);
+                    } else {
+                        rpcCallId = new RPCCallId(stubInterface, methodId, callId);
+                    }
+                    RPCCallId waitingReq = waitingCallers.get(rpcCallId);
+                    if (waitingReq == null && !rpcCallId.compareInstanceId) {
+                        for (RPCCallId req : waitingCallers.keySet()) {
+                            if (req.equals(rpcCallId)) {
+                                waitingReq = req;
+                                break;
+                            }
+                        }
+                    }
+                    if (waitingReq != null) {
+                        synchronized (waitingReq) {
+                            waitingReq.result = message;
+                            waitingReq.notifyAll();
+                            if (waitingReq.proxyInstance != null) {
+                                waitingReq.proxyInstance.onRPCOneWayResult(message);
+                                waitingCallers.remove(waitingReq);
+                            }
+                        }
+                    } else {
+                        String result = jsoNify.fromJSON(message, "result", String.class);
+                        if (result != null && !result.isEmpty()) {
+                            loge("No Waiting request found for response " + message);
+                        }
+                    }
                 }
             } else {
-                //result call
-                int methodId = jsoNify.fromJSON(message, "method_id", int.class);
-                int callId = jsoNify.fromJSON(message, "id", int.class);
-                RPCCallId rpcCallId;
-                if (jsoNify.getJSONElement(message, "ins_id") != null) {
-                    int instanceId = jsoNify.fromJSON(message, "ins_id", int.class);
-                    rpcCallId = new RPCCallId(stubInterface, methodId, callId, instanceId);
-                } else {
-                    rpcCallId = new RPCCallId(stubInterface, methodId, callId);
-                }
-                RPCCallId waitingReq = waitingCallers.get(rpcCallId);
-                if (waitingReq == null && !rpcCallId.compareInstanceId) {
-                    for (RPCCallId req : waitingCallers.keySet()) {
-                        if (req.equals(rpcCallId)) {
-                            waitingReq = req;
-                            break;
-                        }
-                    }
-                }
-                if (waitingReq != null) {
-                    synchronized (waitingReq) {
-                        waitingReq.result = message;
-                        waitingReq.notifyAll();
-                        if (waitingReq.proxyInstance != null) {
-                            waitingReq.proxyInstance.onRPCOneWayResult(message);
-                            waitingCallers.remove(waitingReq);
-                        }
-                    }
-                } else {
-                    String result = jsoNify.fromJSON(message, "result", String.class);
-                    if (result != null && !result.isEmpty()) {
-                        loge("No Waiting request found for response " + message);
-                    }
-                }
+                logv("Ignoring message to different handler " + getMessageEntries(message));
             }
         } catch (Exception ex) {
             loge(ex);
@@ -275,23 +282,40 @@ public final class JsonRPCMessageHandler implements MessageReceiver<String> {
     }
 
     /**
+     * Returns a map of entries in the given message
+     */
+    public Map<String, String> getMessageEntries(String message) {
+        Map<String, String> entries = new LinkedHashMap<>();
+        entries.put("this", "" + hashCode());
+        try {
+            JSONify.JElement json = jsoNify.fromJson(message);
+            for (String key : json.getKeys()) {
+                entries.put(key, json.getJsonValue(key));
+            }
+        } catch (Exception ex) {
+            loge(ex);
+        }
+        return entries;
+    }
+
+    /**
      * Clear out any pending timedout one way requests
      */
     private void clearTimedOutOneWayRequests () {
         for (RPCCallId req : waitingCallers.keySet()) {
             if (req.proxyInstance != null && req.hasTimedOut()) {
                 waitingCallers.remove(req);
-                loge("One way call timed out for  " + req);
-                JSONify.JObject jsonRPCObject = jsoNify.newJson();
-                jsonRPCObject.put("jsonrpc", "2.0");
-                jsonRPCObject.put("interface", req.interfaceName);
-                jsonRPCObject.put("method_id", req.methodId);
-                jsonRPCObject.put("id", req.callId);
-                jsonRPCObject.put("ins_id", req.instanceId);
-                JSONify.JObject jsonErrorObject = jsoNify.newJson();
-                jsonErrorObject.put("code", -32001);
-                jsonRPCObject.put("error", jsonErrorObject);
-                req.proxyInstance.onRPCOneWayResult(jsonRPCObject.toJson());
+//                loge("One way call timed out for  " + req);
+//                JSONify.JObject jsonRPCObject = jsoNify.newJson();
+//                jsonRPCObject.put("jsonrpc", "2.0");
+//                jsonRPCObject.put("interface", req.interfaceName);
+//                jsonRPCObject.put("method_id", req.methodId);
+//                jsonRPCObject.put("id", req.callId);
+//                jsonRPCObject.put("ins_id", req.instanceId);
+//                JSONify.JObject jsonErrorObject = jsoNify.newJson();
+//                jsonErrorObject.put("code", -32001);
+//                jsonRPCObject.put("error", jsonErrorObject);
+//                req.proxyInstance.onRPCOneWayResult(jsonRPCObject.toJson());
             }
         }
     }

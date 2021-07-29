@@ -80,9 +80,24 @@ class ClassBuilder extends RpcfyBuilder {
                 .addParameter(JsonRPCMessageHandler.class, "rpcHandler")
                 .addParameter(JSONify.class, "jsonify")
                 .addParameter(Integer.class, "remoteID")
+                .addStatement("this(rpcHandler, jsonify, remoteID, null)")
+                .build());
+
+        //constructor
+        proxyClassBuilder.addMethod(MethodSpec.constructorBuilder()
+                .addModifiers(Modifier.PUBLIC)
+                .addJavadoc("Initialize this {@link " + getProxyClassName().simpleName() + "} with the given {@link JsonRPCMessageHandler}\n\n")
+                .addJavadoc("@param rpcHandler A {@link JsonRPCMessageHandler} to send the generated JSONRPC messages\n")
+                .addJavadoc("@param jsonify A custom implementation of  {@link JSONify} \n")
+                .addJavadoc("@param remoteID A unique id to represent this instance \n")
+                .addParameter(JsonRPCMessageHandler.class, "rpcHandler")
+                .addParameter(JSONify.class, "jsonify")
+                .addParameter(Integer.class, "remoteID")
+                .addParameter(Integer.class, "remoteHandlerID")
                 .addStatement("this.rpcHandler = rpcHandler")
                 .addStatement("this.jsonify = jsonify")
                 .addStatement("this.remoteID = remoteID")
+                .addStatement("this.remoteHandlerID = remoteHandlerID")
                 .build());
 
 
