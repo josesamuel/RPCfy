@@ -38,6 +38,7 @@ open class EchoServiceImpl : EchoService {
     }
 
     private val listeners = ArrayList<EchoServiceListener>()
+    private val uniqueListeners = mutableSetOf<EchoServiceListener>()
 
     override fun getEchoService(): EchoService = this
 
@@ -141,5 +142,7 @@ open class EchoServiceImpl : EchoService {
     override fun oneWayTimeout() {
         Thread.sleep(5000)
     }
+
+    override fun testUniqueListeners(listener: EchoServiceListener) = uniqueListeners.add(listener)
 
 }

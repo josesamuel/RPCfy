@@ -547,7 +547,12 @@ class MethodBuilder extends RpcfyBuilder {
                 .addModifiers(Modifier.PUBLIC)
                 .returns(int.class)
                 .addAnnotation(Override.class)
-                .addStatement("return remoteID != null ? remoteID : super.hashCode()");
+                .addStatement("int code = super.hashCode()")
+                .beginControlFlow("if (remoteID != null || remoteHandlerID != null)")
+                .addStatement("code = (remoteID != null) ? (17 * remoteID) : 0")
+                .addStatement("code += (remoteHandlerID != null) ? (89 * remoteHandlerID) : 0")
+                .endControlFlow()
+                .addStatement("return code");
         classBuilder.addMethod(methodBuilder.build());
     }
 
@@ -555,12 +560,13 @@ class MethodBuilder extends RpcfyBuilder {
      * Add proxy method for equals
      */
     private void addEquals(TypeSpec.Builder classBuilder) {
+        String interfaceName = getRemoterInterfaceClassName() + ClassBuilder.PROXY_SUFFIX;
         MethodSpec.Builder methodBuilder = MethodSpec.methodBuilder("equals")
                 .addModifiers(Modifier.PUBLIC)
                 .addParameter(ClassName.get(Object.class), "obj")
                 .returns(boolean.class)
                 .addAnnotation(Override.class)
-                .addStatement("return (obj instanceof " + getRemoterInterfaceClassName() + ClassBuilder.PROXY_SUFFIX + ") && obj.hashCode() == hashCode()");
+                .addStatement("return (obj instanceof " + interfaceName + ") && obj.hashCode() == hashCode() && ( (remoteID != null && remoteID.equals(((" + interfaceName + ") obj).remoteID)) || (remoteID == ((" + interfaceName + ") obj).remoteID)) && ( (remoteHandlerID != null && remoteHandlerID.equals(((" + interfaceName + ") obj).remoteHandlerID)) || (remoteHandlerID == ((" + interfaceName + ") obj).remoteHandlerID))");
         classBuilder.addMethod(methodBuilder.build());
     }
 

@@ -58,4 +58,6 @@ interface EchoService {
 
     fun oneWayTimeout()
 
+    fun testUniqueListeners(listener: EchoServiceListener): Boolean
+
 }

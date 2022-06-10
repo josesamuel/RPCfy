@@ -435,6 +435,25 @@ class JsonRPCfyTest {
     }
 
     @Test
+    fun testUniqueListeners() {
+        val listener1 = object : EchoServiceListener{}
+        val listener2 = object : EchoServiceListener{}
+        val listener3 = object : EchoServiceListener{}
+
+        assertTrue(echoService.testUniqueListeners(listener1))
+        assertTrue(echoService.testUniqueListeners(listener2))
+
+        assertFalse(echoService.testUniqueListeners(listener1))
+        assertFalse(echoService.testUniqueListeners(listener2))
+
+        assertTrue(echoService.testUniqueListeners(listener3))
+
+        assertFalse(echoService.testUniqueListeners(listener1))
+        assertFalse(echoService.testUniqueListeners(listener2))
+        assertFalse(echoService.testUniqueListeners(listener3))
+    }
+
+    @Test
     @Throws(Exception::class)
     fun testListener() {
         val registerLatch1 = CountDownLatch(1)
