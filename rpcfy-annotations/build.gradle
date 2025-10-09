@@ -9,7 +9,7 @@ repositories {
 
 dependencies {
     api fileTree(dir: 'libs', include: ['*.jar'])
-    api 'com.google.code.gson:gson:2.8.5'
+    api 'com.google.code.gson:gson:2.8.9'
 }
 
 apply from: rootProject.file('gradle/gradle-mvn-push.gradle')
